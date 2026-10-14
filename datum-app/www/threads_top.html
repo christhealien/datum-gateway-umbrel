@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="UTF-8">
+	<title>DATUM Gateway Threads</title>
+	<link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico">
+	<link rel="stylesheet" type="text/css" href="/assets/style.css">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<script>
+	(function(){var K="gc-theme",t="dark";try{if(localStorage.getItem(K)==="light")t="light"}catch(e){}
+	function a(){document.documentElement.setAttribute("data-theme",t);var b=document.querySelectorAll("[data-theme-toggle]");for(var i=0;i<b.length;i++){b[i].innerHTML=t==="light"?'☾<span class="tl"> Dark</span>':'☀<span class="tl"> Light</span>'}}
+	a();document.addEventListener("DOMContentLoaded",a);
+	document.addEventListener("click",function(e){var b=e.target&&e.target.closest?e.target.closest("[data-theme-toggle]"):null;if(!b)return;t=t==="light"?"dark":"light";try{localStorage.setItem(K,t)}catch(x){}a();document.dispatchEvent(new CustomEvent("themechange"))})})();
+	</script>
+</head>
+<body data-page="threads">
+	<header class="app">
+		<h1><img src="/assets/icons/datum_logo.svg" alt="" width="30" height="30"><span><span class="brand">DATUM</span> Gateway</span></h1>
+		<nav class="tabs">
+			<a href="/">Status</a>
+			<a href="/clients">Clients</a>
+			<a href="/threads" class="active">Threads</a>
+			<a href="/coinbaser">Coinbaser</a>
+			<a href="/config">Config</a>
+		</nav>
+		<div class="spacer"></div>
+		<div class="hdr-right">
+			<a class="btn" href="/account">Account</a>
+			<span id="livePill" class="pill live" title="The list refreshes itself"><span class="dot"></span><span id="liveText">live</span></span>
+			<button type="button" class="theme-btn" data-theme-toggle>&#9728;<span class="tl"> Light</span></button>
+		</div>
+	</header>
+
+	<main>
+		<section class="panel">
+			<div class="panel-h"><h2>Thread stats</h2><span class="sub" id="pageSub">how the Stratum server spreads miners over its threads</span></div>
+			<div class="kv-grid" id="sum" style="margin-bottom:.9rem"></div>
+			<div id="live">

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="UTF-8">
+	<title>DATUM Gateway Status</title>
+	<link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico">
+	<link rel="stylesheet" type="text/css" href="/assets/style.css">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<script>
+	/* light / dark: applied before the page draws; the choice stays in this browser only */
+	(function () {
+		var KEY = "gc-theme", theme = "dark";
+		try { if (localStorage.getItem(KEY) === "light") theme = "light"; } catch (e) {}
+		function apply() {
+			document.documentElement.setAttribute("data-theme", theme);
+			var b = document.querySelectorAll("[data-theme-toggle]");
+			for (var i = 0; i < b.length; i++) {
+				b[i].innerHTML = theme === "light" ? '☾<span class="tl"> Dark</span>' : '☀<span class="tl"> Light</span>';
+				b[i].setAttribute("title", "Switch to " + (theme === "light" ? "black" : "white") + " background");
+			}
+		}
+		apply();
+		document.addEventListener("DOMContentLoaded", apply);
+		document.addEventListener("click", function (e) {
+			var b = e.target && e.target.closest ? e.target.closest("[data-theme-toggle]") : null;
+			if (!b) return;
+			theme = theme === "light" ? "dark" : "light";
+			try { localStorage.setItem(KEY, theme); } catch (x) {}
+			apply();
+			document.dispatchEvent(new CustomEvent("themechange"));
+		});
+	})();
+	</script>
+</head>
+<body>
+	<header class="app">
+		<h1><img src="/assets/icons/datum_logo.svg" alt="" width="30" height="30"><span><span class="brand">DATUM</span> Gateway</span></h1>
+		<nav class="tabs">
+			<a href="/" class="active">Status</a>
+			<a href="/clients">Clients</a>
+			<a href="/threads">Threads</a>
+			<a href="/coinbaser">Coinbaser</a>
+			<a href="/config">Config</a>
+		</nav>
+		<div class="spacer"></div>
+		<div class="hdr-right">
+			<a class="btn" href="/account">Account</a>
+			<span id="livePill" class="pill live" title="The page refreshes itself"><span class="dot"></span><span id="liveText">live</span></span>
+			<button type="button" class="theme-btn" data-theme-toggle>&#9728;<span class="tl"> Light</span></button>
+		</div>
+	</header>
+
+	<main>
+		<div id="alert" class="note bad hidden" role="alert"></div>
+
+		<section class="panel" id="overview">
+			<div class="panel-h">
+				<h2>Overview</h2>
+				<span class="sub" id="ovSub"></span>
+				<span class="grow"></span>
+				<span id="statusPill" class="pill"><span class="dot"></span><span id="statusText">&mdash;</span></span>
+			</div>
+			<div class="kv-grid ov">
+				<div class="kv hero"><span class="label">Estimated hashrate</span><span class="val big" id="hr">&mdash;</span><span class="sub" id="hrSub">&nbsp;</span></div>
+				<div class="kv"><span class="label">Workers</span><span class="val" id="workers">&mdash;</span><span class="sub" id="workersSub">&nbsp;</span></div>
+				<div class="kv"><span class="label">Shares / min</span><span class="val" id="rate">&mdash;</span><span class="sub" id="rateSub">&nbsp;</span></div>
+				<div class="kv"><span class="label">Block height</span><span class="val" id="height">&mdash;</span><span class="sub" id="jobAge">&nbsp;</span></div>
+				<div class="kv"><span class="label">Block value</span><span class="val" id="bval">&mdash;</span><span class="sub" id="bvalSub">&nbsp;</span></div>
+				<div class="kv"><span class="label">Network difficulty</span><span class="val" id="ndiff">&mdash;</span><span class="sub" id="ndiffSub">&nbsp;</span></div>
+				<div class="kv"><span class="label">Process uptime</span><span class="val" id="uptime">&mdash;</span><span class="sub" id="uptimeSub">&nbsp;</span></div>
+			</div>
+		</section>
+
+		<section class="panel" id="graphPanel">
+			<div class="panel-h">
+				<h2>Hashrate</h2>
+				<span class="sub" id="graphSub"></span>
+				<span class="grow"></span>
+				<span class="seg" id="range">
+					<button type="button" data-h="1">1 h</button>
+					<button type="button" data-h="6">6 h</button>
+					<button type="button" data-h="24" class="active">24 h</button>
+				</span>
+			</div>
+			<div class="chart-wrap" id="chartWrap"><div class="chart-empty">Collecting samples&hellip; the graph fills in as this page stays open.</div></div>
+			<div class="legend" id="graphLegend"></div>
+		</section>
+
+		<div class="cols">
+			<section class="panel">
+				<div class="panel-h"><h2>Decentralized client stats</h2><span class="sub">shares this Gateway has judged</span></div>
+				<div class="kv-grid">
+					<div class="kv"><span class="label">Local shares accepted</span><span class="val" id="lacc">&mdash;</span><span class="sub" id="laccSub">&nbsp;</span></div>
+					<div class="kv"><span class="label">Local shares rejected</span><span class="val" id="lrej">&mdash;</span><span class="sub" id="lrejSub">&nbsp;</span></div>
+					<div class="kv"><span class="label">Pool shares accepted</span><span class="val" id="pacc">&mdash;</span><span class="sub" id="paccSub">&nbsp;</span></div>
+					<div class="kv"><span class="label">Pool shares rejected</span><span class="val" id="prej">&mdash;</span><span class="sub" id="prejSub">&nbsp;</span></div>
+				</div>
+				<p class="intro" style="margin:.8rem 0 0">Local counts come from this Gateway and your node. Pool counts come from the DATUM pool and can differ a little (stale work, latency). They are tracked separately.</p>
+			</section>
+
+			<section class="panel">
+				<div class="panel-h"><h2>Pool</h2><span class="sub">DATUM connection</span></div>
+				<dl class="rows">
+					<dt>Status</dt><dd><span class="grow" data-k="DATUM_CONNECTION_STATUS">${DATUM_CONNECTION_STATUS}</span></dd>
+					<dt>Pool host</dt><dd><span class="grow" data-k="DATUM_POOL_HOST">${DATUM_POOL_HOST}</span></dd>
+					<dt>Pool tag</dt><dd><span class="grow" data-k="DATUM_POOL_TAG">${DATUM_POOL_TAG}</span></dd>
+					<dt>Secondary / miner tag</dt><dd><span class="grow" data-k="DATUM_MINER_TAG">${DATUM_MINER_TAG}</span></dd>
+					<dt>Pool current MinDiff</dt><dd><span class="grow" data-k="DATUM_POOL_DIFF" hidden>${DATUM_POOL_DIFF}</span><span class="grow" id="poolDiff"></span></dd>
+					<dt>Pool pubkey</dt><dd><span class="grow" data-k="DATUM_POOL_PUBKEY" style="font-size:.78rem">${DATUM_POOL_PUBKEY}</span><span data-copy="DATUM_POOL_PUBKEY"></span></dd>
+				</dl>
+			</section>
+		</div>
+
+		<section class="panel" style="margin-top:1rem">
+			<div class="panel-h"><h2>Stratum server info</h2><span class="sub">what your miners connect to</span><span class="grow"></span><a class="btn" href="/config#connect">Miner connection details</a></div>
+			<div class="kv-grid">
+				<div class="kv"><span class="label">Active threads</span><span class="val" data-k="STRATUM_ACTIVE_THREADS">${STRATUM_ACTIVE_THREADS}</span></div>
+				<div class="kv"><span class="label">Total connections</span><span class="val" data-k="STRATUM_TOTAL_CONNECTIONS">${STRATUM_TOTAL_CONNECTIONS}</span></div>
+				<div class="kv"><span class="label">Total work subscriptions</span><span class="val" data-k="STRATUM_TOTAL_SUBSCRIPTIONS">${STRATUM_TOTAL_SUBSCRIPTIONS}</span></div>
+				<div class="kv"><span class="label">Estimated hashrate</span><span class="val" data-k="STRATUM_HASHRATE_ESTIMATE">${STRATUM_HASHRATE_ESTIMATE}</span></div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="panel-h"><h2>Current stratum job</h2><span class="sub" id="jobSub"></span></div>
+			<div class="gauges" id="gauges"></div>
+			<dl class="rows">
+				<dt>Job ID</dt><dd><span class="grow" data-k="STRATUM_JOB_INFO">${STRATUM_JOB_INFO}</span><span class="tag" id="jobAge2"></span></dd>
+				<dt>Block height</dt><dd><span class="grow" data-k="STRATUM_JOB_BLOCK_HEIGHT">${STRATUM_JOB_BLOCK_HEIGHT}</span></dd>
+				<dt>Block value</dt><dd><span class="grow" data-k="STRATUM_JOB_BLOCK_VALUE">${STRATUM_JOB_BLOCK_VALUE}</span><span class="tag" id="satTag"></span></dd>
+				<dt>Previous block</dt><dd><span class="grow" data-k="STRATUM_JOB_PREVBLOCK">${STRATUM_JOB_PREVBLOCK}</span><span data-copy="STRATUM_JOB_PREVBLOCK"></span></dd>
+				<dt>Block target</dt><dd><span class="grow" data-k="STRATUM_JOB_TARGET">${STRATUM_JOB_TARGET}</span><span data-copy="STRATUM_JOB_TARGET"></span></dd>
+				<dt>Witness commitment</dt><dd><span class="grow" data-k="STRATUM_JOB_WITNESS">${STRATUM_JOB_WITNESS}</span><span data-copy="STRATUM_JOB_WITNESS"></span></dd>
+				<dt>Block difficulty</dt><dd><span class="grow" data-k="STRATUM_JOB_DIFF">${STRATUM_JOB_DIFF}</span></dd>
+				<dt>Version</dt><dd><span class="grow" data-k="STRATUM_JOB_VERSION">${STRATUM_JOB_VERSION}</span></dd>
+				<dt>Bits</dt><dd><span class="grow" data-k="STRATUM_JOB_BITS">${STRATUM_JOB_BITS}</span></dd>
+				<dt>Time</dt><dd><span class="grow" data-k="STRATUM_JOB_TIMEINFO">${STRATUM_JOB_TIMEINFO}</span><span class="tag" id="timeTag"></span></dd>
+				<dt>Limits</dt><dd><span class="grow" data-k="STRATUM_JOB_LIMITINFO">${STRATUM_JOB_LIMITINFO}</span></dd>
+				<dt>Size</dt><dd><span class="grow" data-k="STRATUM_JOB_SIZE">${STRATUM_JOB_SIZE}</span><span class="tag" id="sizeTag"></span></dd>
+				<dt>Weight</dt><dd><span class="grow" data-k="STRATUM_JOB_WEIGHT">${STRATUM_JOB_WEIGHT}</span><span class="tag" id="weightTag"></span></dd>
+				<dt>Sigops</dt><dd><span class="grow" data-k="STRATUM_JOB_SIGOPS">${STRATUM_JOB_SIGOPS}</span><span class="tag" id="sigopsTag"></span></dd>
+				<dt>Txn count</dt><dd><span class="grow" data-k="STRATUM_JOB_TXNCOUNT">${STRATUM_JOB_TXNCOUNT}</span></dd>
+			</dl>
+		</section>
+
+		<p class="footer-note"><span id="updated">Auto refresh</span> &middot; <a href="#" id="pauseLink">pause</a> &middot; <a href="#" id="restartLink">restart Gateway</a> &middot; the hashrate graph is recorded in this browser only</p>
+
+		<!-- raw values the overview tiles above are worked out from -->
+		<div id="raw" hidden>
+			<span data-k="STRATUM_SHARES_ACCEPTED">${STRATUM_SHARES_ACCEPTED}</span>
+			<span data-k="STRATUM_SHARES_REJECTED">${STRATUM_SHARES_REJECTED}</span>
+			<span data-k="DATUM_SHARES_ACCEPTED">${DATUM_SHARES_ACCEPTED}</span>
+			<span data-k="DATUM_SHARES_REJECTED">${DATUM_SHARES_REJECTED}</span>
+			<span data-k="DATUM_PROCESS_UPTIME">${DATUM_PROCESS_UPTIME}</span>
+		</div>
+	</main>
+
+	<script>
+	(function () {
+		"use strict";
+		var HKEY = "datum-gw-hist-v1", DAY = 86400000, REFRESH = 5000;
+		var hist = [], paused = false, srvOff = 0, range = 24, lastPersist = 0, lastOk = 0, jobTs = NaN;
+
+		function $(s) { return document.querySelector(s); }
+		function K(n) { var e = document.querySelector('[data-k="' + n + '"]'); return e ? e.textContent.replace(/\s+/g, " ").trim() : ""; }
+		function num(s) { var m = String(s == null ? "" : s).replace(/,/g, "").match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : NaN; }
+		function set(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+		function ok(v) { return v !== "" && isFinite(v); }
+
+		/* auto refresh interval (Config -> Auto refresh), in this browser; 0 = off */
+		function gwRefreshMs() { try { var v = localStorage.getItem("gc-refresh"); if (v === "0" || v === "2" || v === "10" || v === "30") return +v * 1000; } catch (e) {} return 5000; }
+		function gwEvery() { var ms = gwRefreshMs(); return ms ? "refreshes every " + (ms / 1000) + " s" : "auto refresh is off"; }
+
+		/* share numbers. The Gateway prints share difficulty in hashes (the DATUM / mempool scale).
+		   "datum" = as printed, "own" = the miner's own scale (divided by 2^32), "both" = printed with the miner's number in brackets */
+		function gwMode() { try { var m = localStorage.getItem("gc-sharefmt"); if (m === "own" || m === "both") return m; } catch (e) {} return "datum"; }
+		function gwConv(s) {
+			var mode = gwMode(), str = String(s == null ? "" : s);
+			if (mode === "datum") return str;
+			var m = /(\d+(?:\.\d+)?)\s*([kKMGTPEZ]?)/.exec(str);
+			if (!m) return str;
+			var v = parseFloat(m[1]) * Math.pow(1000, { "": 0, k: 1, K: 1, M: 2, G: 3, T: 4, P: 5, E: 6, Z: 7 }[m[2]] || 0) / 4294967296, u = ["", "K", "M", "G", "T", "P", "E"], i = 0;
+			while (v >= 1000 && i < u.length - 1) { v /= 1000; i++; }
+			var conv = (v >= 100 ? v.toFixed(0) : v.toFixed(2)) + u[i];
+			var head = str.slice(0, m.index), tail = str.slice(m.index + m[0].length);
+			return mode === "both" ? head + m[0].trim() + " (" + conv + ")" + tail : head + conv + tail;
+		}
+		function group(n) { return isFinite(n) ? Math.round(n).toLocaleString("en-US") : "—"; }
+		function pad(n) { return (n < 10 ? "0" : "") + n; }
+		function hhmmss(ms) { var d = new Date(ms); return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()); }
+		function utc(sec) { var d = new Date(sec * 1000); return d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate()) + " " + pad(d.getUTCHours()) + ":" + pad(d.getUTCMinutes()) + ":" + pad(d.getUTCSeconds()) + " UTC"; }
+		function dur(s) {
+			s = Math.max(0, Math.round(s));
+			if (s < 90) return s + " s";
+			if (s < 5400) return Math.round(s / 60) + " min";
+			if (s < 172800) return (s / 3600).toFixed(1) + " h";
+			return (s / 86400).toFixed(1) + " d";
+		}
+		function now() { return Date.now() + srvOff; }
+
+		/* hashrate: the Gateway reports TH/s; show the unit that reads best */
+		function fmtHash(th) {
+			if (!ok(th) || th <= 0) return ["0", "TH/s"];
+			var v = th * 1e12, u = ["H/s", "kH/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"], i = 0;
+			while (v >= 1000 && i < u.length - 1) { v /= 1000; i++; }
+			return [v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2), u[i]];
+		}
+		function hashStr(th) { var f = fmtHash(th); return f[0] + " " + f[1]; }
+
+		function shortUptime(s) {
+			var out = [], re = /(\d+)\s*(day|hour|minute|second)/g, m, map = { day: "d", hour: "h", minute: "m", second: "s" };
+			while ((m = re.exec(s))) out.push(m[1] + map[m[2]]);
+			return out.length ? out.slice(0, 3).join(" ") : (s || "—");
+		}
+
+		/* ---------- status pill, from the Gateway's own coloured dot ---------- */
+		function statusInfo() {
+			var el = $('[data-k="DATUM_CONNECTION_STATUS"]');
+			if (!el) return { cls: "", text: "" };
+			var c = el.querySelector("circle"), style = c ? (c.getAttribute("style") || "") : "", cls = "";
+			if (/lime|green/.test(style)) cls = "ok"; else if (/red/.test(style)) cls = "bad"; else if (/yellow|orange/.test(style)) cls = "warn";
+			return { cls: cls, text: el.textContent.replace(/\s+/g, " ").trim() };
+		}
+
+		/* ---------- history (recorded in this browser) ---------- */
+		function loadHist() {
+			try {
+				var o = JSON.parse(localStorage.getItem(HKEY) || "null");
+				if (o && o.v === 1 && o.s && o.s.length) {
+					var cut = Date.now() - DAY;
+					hist = o.s.filter(function (r) { return r && r.length >= 6 && isFinite(r[0]) && isFinite(r[1]) && r[0] >= cut; });
+				}
+			} catch (e) { hist = []; }
+		}
+		function persist(force) {
+			var t = Date.now();
+			if (!force && t - lastPersist < 30000) return;
+			lastPersist = t;
+			try { localStorage.setItem(HKEY, JSON.stringify({ v: 1, s: hist })); } catch (e) { /* storage blocked: the graph just starts over */ }
+		}
+		function record(th, conn, acc, rej, h) {
+			var t = Date.now();
+			if (hist.length && t - hist[hist.length - 1][0] < 12000) return;
+			hist.push([t, ok(th) ? +th.toFixed(4) : 0, ok(conn) ? conn : 0, ok(acc) ? acc : 0, ok(rej) ? rej : 0, ok(h) ? h : 0]);
+			var cut = t - DAY;
+			while (hist.length && hist[0][0] < cut) hist.shift();
+			persist(false);
+		}
+
+		/* ---------- graph ---------- */
+		/* a round step (1, 2, 2.5, 5 x 10^n) that gives about three gridlines */
+		function niceScale(v) {
+			if (!(v > 0)) return { top: 1, step: 1, n: 1 };
+			var raw = v / 3, p = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10)), c = [1, 2, 2.5, 5, 10], step = 10 * p, i;
+			for (i = 0; i < c.length; i++) if (c[i] * p >= raw) { step = c[i] * p; break; }
+			var n = Math.max(1, Math.ceil(v / step - 1e-9));
+			return { top: step * n, step: step, n: n };
+		}
+		function drawGraph() {
+			var wrap = document.getElementById("chartWrap"), t1 = Date.now(), t0 = t1 - range * 3600000;
+			var pts = hist.filter(function (r) { return r[0] >= t0; });
+			if (pts.length < 2) {
+				wrap.innerHTML = '<div class="chart-empty">Collecting samples… the graph fills in as this page stays open.</div>';
+				set("graphSub", ""); document.getElementById("graphLegend").innerHTML = "";
+				return;
+			}
+			var W = Math.max(300, wrap.clientWidth || 800), H = 210, L = 46, R = 10, T = 26, B = 24;
+			var maxv = 0, sum = 0, i;
+			for (i = 0; i < pts.length; i++) { if (pts[i][1] > maxv) maxv = pts[i][1]; sum += pts[i][1]; }
+			var sc = niceScale(maxv * 1.05), top = sc.top, avg = sum / pts.length;
+			function X(t) { return L + (t - t0) / (t1 - t0) * (W - L - R); }
+			function Y(v) { return T + (1 - v / top) * (H - T - B); }
+			// bucket to at most ~one point per two pixels
+			var maxPts = Math.floor((W - L - R) / 2), step = Math.max(1, Math.ceil(pts.length / maxPts)), d = [], cur = [], prevT = 0, j, k;
+			for (j = 0; j < pts.length; j += step) {
+				var chunk = pts.slice(j, j + step), av = 0, tt = 0;
+				for (k = 0; k < chunk.length; k++) { av += chunk[k][1]; tt += chunk[k][0]; }
+				av /= chunk.length; tt /= chunk.length;
+				if (prevT && tt - prevT > 150000 * step && cur.length) { d.push(cur); cur = []; } // page was closed: leave a gap
+				cur.push([X(tt), Y(av), tt, av, chunk[chunk.length - 1][2]]);
+				prevT = tt;
+			}
+			if (cur.length) d.push(cur);
+			var svg = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="Hashrate over the last ' + range + ' hours">';
+			var unit = fmtHash(top)[1], div = { "H/s": 1, "kH/s": 1e3, "MH/s": 1e6, "GH/s": 1e9, "TH/s": 1e12, "PH/s": 1e15, "EH/s": 1e18 }[unit] / 1e12;
+			for (i = 0; i <= sc.n; i++) {
+				var v = sc.step * i, y = Y(v), lv = v / div;
+				svg += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/>';
+				svg += '<text class="axis" x="' + (L - 6) + '" y="' + (y + 3) + '" text-anchor="end">' + (lv >= 10 || lv === Math.round(lv) ? lv.toFixed(0) : lv.toFixed(1)) + "</text>";
+			}
+			svg += '<text class="axis" x="' + (L - 6) + '" y="10" text-anchor="end">' + unit + "</text>";
+			var lab = [[0, range + " h ago"], [0.5, (range / 2) + " h"], [1, "now"]];
+			for (i = 0; i < lab.length; i++) {
+				var x = L + lab[i][0] * (W - L - R);
+				svg += '<text class="axis" x="' + x + '" y="' + (H - 6) + '" text-anchor="' + (i === 0 ? "start" : i === 2 ? "end" : "middle") + '">' + lab[i][1] + "</text>";
+			}
+			// a mark for every new block (the Gateway moved on to a new height)
+			var blocks = [];
+			for (i = 1; i < pts.length; i++) if (pts[i][5] > 0 && pts[i - 1][5] > 0 && pts[i][5] > pts[i - 1][5]) blocks.push(X(pts[i][0]));
+			var labelled = blocks.length <= 14;
+			for (i = 0; i < blocks.length; i++) {
+				if (labelled) svg += '<line class="mark" x1="' + blocks[i] + '" x2="' + blocks[i] + '" y1="' + (T - 6) + '" y2="' + (H - B) + '"/><text class="mark-t" x="' + blocks[i] + '" y="' + (T - 9) + '" text-anchor="middle">B</text>';
+				else svg += '<line class="tick" x1="' + blocks[i] + '" x2="' + blocks[i] + '" y1="' + (H - B - 6) + '" y2="' + (H - B) + '"/>';
+			}
+			for (i = 0; i < d.length; i++) {
+				var seg = d[i], line = "";
+				for (j = 0; j < seg.length; j++) line += (j ? "L" : "M") + seg[j][0].toFixed(1) + " " + seg[j][1].toFixed(1);
+				if (seg.length > 1) svg += '<path class="area" d="' + line + "L" + seg[seg.length - 1][0].toFixed(1) + " " + (H - B) + "L" + seg[0][0].toFixed(1) + " " + (H - B) + 'Z"/>';
+				svg += '<path class="ln" d="' + line + '"/>';
+			}
+			svg += '<line class="hover" id="hvLine" y1="' + T + '" y2="' + (H - B) + '" style="display:none"/><circle class="pt" id="hvPt" r="4" style="display:none"/></svg><div class="chart-tip" id="chartTip"></div>';
+			wrap.innerHTML = svg;
+			set("graphSub", "avg " + hashStr(avg) + " · peak " + hashStr(maxv));
+			document.getElementById("graphLegend").innerHTML = "<span>" + pts.length + " samples</span><span>" + (blocks.length ? (labelled ? "<b>B</b> new block" : "<b>|</b> " + blocks.length + " new blocks") : "no new block in this range") + "</span><span>one point every ~" + Math.max(12, Math.round((t1 - t0) / maxPts / 1000)) + " s</span>";
+			var flat = []; for (i = 0; i < d.length; i++) for (j = 0; j < d[i].length; j++) flat.push(d[i][j]);
+			var sv = wrap.querySelector("svg"), tip = document.getElementById("chartTip"), hl = document.getElementById("hvLine"), hp = document.getElementById("hvPt");
+			function over(ev) {
+				var r = sv.getBoundingClientRect(), px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left, best = null, bd = 1e9;
+				for (var q = 0; q < flat.length; q++) { var dd = Math.abs(flat[q][0] - px); if (dd < bd) { bd = dd; best = flat[q]; } }
+				if (!best) return;
+				hl.setAttribute("x1", best[0]); hl.setAttribute("x2", best[0]); hl.style.display = "";
+				hp.setAttribute("cx", best[0]); hp.setAttribute("cy", best[1]); hp.style.display = "";
+				tip.innerHTML = hhmmss(best[2]) + "<br><b>" + hashStr(best[3]) + "</b> · " + best[4] + " worker" + (best[4] === 1 ? "" : "s");
+				tip.style.display = "block";
+				var tx = best[0] + 12; if (tx + 150 > W) tx = best[0] - 150;
+				tip.style.left = Math.max(0, tx) + "px"; tip.style.top = Math.max(0, best[1] - 14) + "px";
+			}
+			function out() { hl.style.display = "none"; hp.style.display = "none"; tip.style.display = "none"; }
+			sv.addEventListener("mousemove", over); sv.addEventListener("mouseleave", out);
+			sv.addEventListener("touchstart", over, { passive: true }); sv.addEventListener("touchmove", over, { passive: true }); sv.addEventListener("touchend", out);
+		}
+
+		/* ---------- derive everything shown from the Gateway's values ---------- */
+		function shareParts(s) {
+			var c = num(s), m = /\(([^)]*)\)/.exec(s || "");
+			return { n: c, diff: m ? m[1].replace(/\s*diff\s*$/i, "") : "" };
+		}
+		function pct(a, b) { var t = a + b; return t > 0 ? (b / t * 100) : 0; }
+		function rateOver(minutes) {
+			if (hist.length < 2) return NaN;
+			var last = hist[hist.length - 1], target = last[0] - minutes * 60000, ref = null, i;
+			for (i = hist.length - 2; i >= 0; i--) { ref = hist[i]; if (hist[i][0] <= target) break; }
+			if (!ref || last[0] - ref[0] < 50000) return NaN;
+			var d = last[3] - ref[3];
+			if (d < 0) return NaN; // counters reset: the Gateway restarted
+			return d / ((last[0] - ref[0]) / 60000);
+		}
+
+		function render() {
+			var st = statusInfo(), hr = num(K("STRATUM_HASHRATE_ESTIMATE")), conn = num(K("STRATUM_TOTAL_CONNECTIONS")), subs = num(K("STRATUM_TOTAL_SUBSCRIPTIONS"));
+			var thr = num(K("STRATUM_ACTIVE_THREADS"));
+			var pill = document.getElementById("statusPill");
+			pill.className = "pill" + (st.cls ? " " + st.cls : "");
+			set("statusText", st.text || "—");
+			var al = document.getElementById("alert");
+			if (st.cls === "bad") { al.textContent = st.text; al.classList.remove("hidden"); } else { al.classList.add("hidden"); }
+
+			var f = fmtHash(hr);
+			set("hr", ok(hr) ? f[0] + " " + f[1] : "—");
+			set("hrSub", ok(thr) ? thr + " active thread" + (thr === 1 ? "" : "s") : "");
+			set("workers", ok(conn) ? String(conn) : "—");
+			set("workersSub", ok(subs) ? subs + " subscribed to work" : "");
+
+			var A = shareParts(K("STRATUM_SHARES_ACCEPTED")), Rj = shareParts(K("STRATUM_SHARES_REJECTED"));
+			var rate = rateOver(5);
+			set("rate", ok(rate) ? (rate >= 100 ? rate.toFixed(0) : rate.toFixed(1)) : "—");
+			set("rateSub", ok(rate) ? "accepted, last 5 min" : "needs a minute of samples");
+			set("lacc", group(A.n)); set("laccSub", A.diff ? gwConv(A.diff) + " difficulty" : " ");
+			set("lrej", group(Rj.n));
+			set("lrejSub", ok(A.n) && ok(Rj.n) ? pct(A.n, Rj.n).toFixed(2) + " % of shares" + (Rj.diff ? " · " + gwConv(Rj.diff) : "") : " ");
+			var pa = K("DATUM_SHARES_ACCEPTED"), pr = K("DATUM_SHARES_REJECTED");
+			if (/^N\/A/i.test(pa)) {
+				set("pacc", "N/A"); set("paccSub", "no pool configured"); set("prej", "N/A"); set("prejSub", "no pool configured");
+			} else {
+				var PA = shareParts(pa), PR = shareParts(pr);
+				set("pacc", group(PA.n)); set("paccSub", PA.diff ? gwConv(PA.diff) + " difficulty" : " ");
+				set("prej", group(PR.n));
+				set("prejSub", ok(PA.n) && ok(PR.n) ? pct(PA.n, PR.n).toFixed(2) + " % of shares" + (PR.diff ? " · " + gwConv(PR.diff) : "") : " ");
+			}
+
+			var height = num(K("STRATUM_JOB_BLOCK_HEIGHT"));
+			set("height", ok(height) ? group(height) : "—");
+			var bv = num(K("STRATUM_JOB_BLOCK_VALUE")), txn = num(K("STRATUM_JOB_TXNCOUNT"));
+			set("bval", ok(bv) ? bv.toFixed(4) + " BTC" : "—");
+			set("bvalSub", ok(txn) ? group(txn) + " transactions" : " ");
+			set("satTag", ok(bv) ? group(Math.round(bv * 1e8)) + " sat" : "");
+			set("poolDiff", gwConv(K("DATUM_POOL_DIFF")));
+			set("ndiff", K("STRATUM_JOB_DIFF") || "—");
+			var vers = K("STRATUM_JOB_VERSION"), bits = K("STRATUM_JOB_BITS");
+			set("ndiffSub", bits ? "bits " + bits : " ");
+			var up = K("DATUM_PROCESS_UPTIME");
+			set("uptime", shortUptime(up));
+			set("uptimeSub", up && up.length > 12 ? up : " ");
+			set("ovSub", K("DATUM_POOL_HOST") && K("DATUM_POOL_HOST") !== "N/A" ? "pool " + K("DATUM_POOL_HOST") : "non-pooled");
+
+			// job id: "<id> (<index>) @ <epoch seconds>"
+			var jm = /@\s*([\d.]+)/.exec(K("STRATUM_JOB_INFO"));
+			jobTs = jm ? parseFloat(jm[1]) : NaN;
+			var tm = /Current:\s*(\d+)\s*\/\s*Min:\s*(\d+)/.exec(K("STRATUM_JOB_TIMEINFO"));
+			if (tm) set("timeTag", utc(+tm[1]) + (+tm[2] ? " · min " + utc(+tm[2]).slice(11) : "")); else set("timeTag", "");
+			set("jobSub", ok(height) ? "height " + group(height) + (K("STRATUM_JOB_INFO") ? " · job " + K("STRATUM_JOB_INFO").split(" ")[0] : "") : "waiting for a template from your node");
+			ageTick();
+
+			// block fill gauges
+			var lm = /Size:\s*(\d+),\s*Weight:\s*(\d+),\s*SigOps:\s*(\d+)/.exec(K("STRATUM_JOB_LIMITINFO"));
+			var size = num(K("STRATUM_JOB_SIZE")), weight = num(K("STRATUM_JOB_WEIGHT")), sig = num(K("STRATUM_JOB_SIGOPS"));
+			var g = document.getElementById("gauges"), html = "";
+			if (lm && ok(size) && ok(weight) && ok(sig)) {
+				var items = [["Block weight", weight, +lm[2], "weight", "weightTag"], ["Block size", size, +lm[1], "bytes", "sizeTag"], ["Sigops", sig, +lm[3], "sigops", "sigopsTag"]];
+				for (var i = 0; i < items.length; i++) {
+					var p = items[i][2] > 0 ? items[i][1] / items[i][2] * 100 : 0;
+					html += '<div class="gauge"><div class="gh"><span>' + items[i][0] + "</span><b>" + p.toFixed(1) + ' %</b></div><div class="bar' + (p > 99 ? " warn" : "") + '"><span style="width:' + Math.min(100, p).toFixed(1) + '%"></span></div><div class="gs">' + group(items[i][1]) + " of " + group(items[i][2]) + " " + items[i][3] + "</div></div>";
+					set(items[i][4], p.toFixed(1) + " % of limit");
+				}
+				g.innerHTML = html; g.style.display = "";
+			} else { g.innerHTML = ""; g.style.display = "none"; }
+
+			// history
+			var acc = A.n, rej = Rj.n;
+			if (ok(hr) || ok(conn)) record(hr, conn, acc, rej, height);
+			drawGraph();
+		}
+
+		function ageTick() {
+			var a = document.getElementById("jobAge"), a2 = document.getElementById("jobAge2");
+			if (!isFinite(jobTs)) { if (a) a.textContent = " "; if (a2) a2.textContent = ""; return; }
+			var s = Math.max(0, now() / 1000 - jobTs), t = "job " + dur(s) + " old";
+			if (a) a.textContent = t; if (a2) a2.textContent = t;
+		}
+
+		/* ---------- copy buttons ---------- */
+		function addCopy() {
+			var holders = document.querySelectorAll("[data-copy]");
+			for (var i = 0; i < holders.length; i++) {
+				if (holders[i].firstChild) continue;
+				var b = document.createElement("button");
+				b.type = "button"; b.className = "copy"; b.textContent = "Copy";
+				b.setAttribute("data-from", holders[i].getAttribute("data-copy"));
+				holders[i].appendChild(b);
+			}
+		}
+		document.addEventListener("click", function (e) {
+			var b = e.target && e.target.closest ? e.target.closest("button.copy") : null;
+			if (!b) return;
+			var txt = K(b.getAttribute("data-from"));
+			function done() { b.textContent = "Copied"; b.classList.add("done"); setTimeout(function () { b.textContent = "Copy"; b.classList.remove("done"); }, 1400); }
+			if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(done, done); }
+			else { var ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (x) {} document.body.removeChild(ta); done(); }
+		});
+
+		/* ---------- live refresh ---------- */
+		function live(state, text) {
+			var p = document.getElementById("livePill");
+			p.className = "pill" + (state === "ok" ? " live ok" : state === "bad" ? " bad" : "");
+			set("liveText", text);
+		}
+		var busy = false;
+		function tick() {
+			if (paused || document.hidden || busy) return;
+			busy = true;
+			var ac = window.AbortController ? new AbortController() : null, to = setTimeout(function () { if (ac) ac.abort(); }, 8000);
+			fetch(location.pathname, { cache: "no-store", credentials: "same-origin", signal: ac ? ac.signal : undefined }).then(function (r) {
+				if (!r.ok) throw new Error("HTTP " + r.status);
+				var d = r.headers.get("Date"); if (d && isFinite(Date.parse(d))) srvOff = Date.parse(d) - Date.now();
+				return r.text();
+			}).then(function (t) {
+				var doc = new DOMParser().parseFromString(t, "text/html"), els = doc.querySelectorAll("[data-k]");
+				if (!els.length) throw new Error("signed out");
+				for (var i = 0; i < els.length; i++) {
+					var cur = document.querySelector('[data-k="' + els[i].getAttribute("data-k") + '"]');
+					if (cur && cur.innerHTML !== els[i].innerHTML) cur.innerHTML = els[i].innerHTML;
+				}
+				lastOk = Date.now();
+				render();
+				live("ok", "live");
+				set("updated", "Updated " + hhmmss(lastOk) + " · " + gwEvery());
+			}).catch(function (e) {
+				if (e && e.message === "signed out") { live("bad", "sign in again"); set("updated", "Signed out. Reload the page to sign in again."); }
+				else { live("bad", "no answer"); set("updated", "The Gateway did not answer. Retrying…"); }
+			}).then(function () { clearTimeout(to); busy = false; });
+		}
+
+
+		function gwRestart(btn) {
+			if (!window.confirm("Restart the Gateway now?\n\nYour miners disconnect for a few seconds and reconnect on their own.")) return;
+			var old = btn.textContent; btn.disabled = true; btn.textContent = "Restarting…";
+			fetch("/restart", { method: "POST", credentials: "same-origin" }).catch(function () {});
+			var tries = 0;
+			(function poll() {
+				setTimeout(function () {
+					tries++;
+					fetch("/", { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+						if (r.ok && tries > 1) location.reload(); else if (tries < 90) poll(); else { btn.disabled = false; btn.textContent = old; }
+					}).catch(function () { if (tries < 90) poll(); });
+				}, 2000);
+			})();
+		}
+		document.getElementById("restartLink").addEventListener("click", function (e) { e.preventDefault(); gwRestart(this); });
+		document.getElementById("pauseLink").addEventListener("click", function (e) {
+			e.preventDefault(); paused = !paused; this.textContent = paused ? "resume" : "pause";
+			live(paused ? "" : "ok", paused ? "paused" : "live"); if (!paused) tick();
+		});
+		document.getElementById("range").addEventListener("click", function (e) {
+			var b = e.target.closest("button[data-h]"); if (!b) return;
+			range = +b.getAttribute("data-h");
+			var all = this.querySelectorAll("button"); for (var i = 0; i < all.length; i++) all[i].classList.toggle("active", all[i] === b);
+			drawGraph();
+		});
+		document.addEventListener("visibilitychange", function () { if (!document.hidden) tick(); else persist(true); });
+		window.addEventListener("pagehide", function () { persist(true); });
+		window.addEventListener("resize", function () { clearTimeout(window.__rz); window.__rz = setTimeout(drawGraph, 150); });
+		document.addEventListener("themechange", drawGraph);
+		window.addEventListener("storage", function () { render(); schedule(); });
+
+		loadHist(); addCopy(); render();
+		var hTimer = null;
+		function schedule() { if (hTimer) clearInterval(hTimer); hTimer = null; var ms = gwRefreshMs(); if (ms) hTimer = setInterval(tick, ms); set("updated", lastOk ? "Updated " + hhmmss(lastOk) + " · " + gwEvery() : gwEvery()); }
+		schedule(); setInterval(ageTick, 1000);
+		setTimeout(tick, 600); // first refresh also learns the Gateway's clock from its Date header
+	})();
+	</script>
+	<noscript><p class="footer-note">Turn on JavaScript for the live overview and graph.</p></noscript>
+</body>
+</html>

@@ -1,0 +1,327 @@
+			</div>
+		</section>
+		<p class="footer-note"><span id="upd">Auto refresh</span> &middot; <a href="#" id="pauseLink">pause</a></p>
+	</main>
+	<script>
+	(function () {
+		"use strict";
+		var page = document.body.getAttribute("data-page") || "", live = document.getElementById("live");
+		if (!live) return;
+		var paused = false, flt = "", hideIdle = false, sortCol = null, sortDir = 1, timer = null;
+
+		function $(s) { return document.querySelector(s); }
+		function num(s) { var m = String(s == null ? "" : s).replace(/,/g, "").match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : NaN; }
+		function si(s) {
+			var m = /^\s*([\d.,]+)\s*([kKMGTPEZY]?)/.exec(String(s || ""));
+			if (!m) return NaN;
+			return parseFloat(m[1].replace(/,/g, "")) * Math.pow(1000, { "": 0, k: 1, K: 1, M: 2, G: 3, T: 4, P: 5, E: 6, Z: 7, Y: 8 }[m[2]] || 0);
+		}
+		/* auto refresh interval (Config -> Auto refresh), in this browser; 0 = off */
+		function gwRefreshMs() { try { var v = localStorage.getItem("gc-refresh"); if (v === "0" || v === "2" || v === "10" || v === "30") return +v * 1000; } catch (e) {} return 5000; }
+		function gwEvery() { var ms = gwRefreshMs(); return ms ? "refreshes every " + (ms / 1000) + " s" : "auto refresh is off"; }
+		function ok(v) { return typeof v === "number" && isFinite(v); }
+
+		/* share numbers. The Gateway prints share difficulty in hashes (the DATUM / mempool scale).
+		   "datum" = as printed, "own" = the miner's own scale (divided by 2^32), "both" = printed with the miner's number in brackets */
+		function gwMode() { try { var m = localStorage.getItem("gc-sharefmt"); if (m === "own" || m === "both") return m; } catch (e) {} return "datum"; }
+		function gwConv(s) {
+			var mode = gwMode(), str = String(s == null ? "" : s);
+			if (mode === "datum") return str;
+			var m = /(\d+(?:\.\d+)?)\s*([kKMGTPEZ]?)/.exec(str);
+			if (!m) return str;
+			var v = parseFloat(m[1]) * Math.pow(1000, { "": 0, k: 1, K: 1, M: 2, G: 3, T: 4, P: 5, E: 6, Z: 7 }[m[2]] || 0) / 4294967296, u = ["", "K", "M", "G", "T", "P", "E"], i = 0;
+			while (v >= 1000 && i < u.length - 1) { v /= 1000; i++; }
+			var conv = (v >= 100 ? v.toFixed(0) : v.toFixed(2)) + u[i];
+			var head = str.slice(0, m.index), tail = str.slice(m.index + m[0].length);
+			return mode === "both" ? head + m[0].trim() + " (" + conv + ")" + tail : head + conv + tail;
+		}
+		function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+		function pad(n) { return (n < 10 ? "0" : "") + n; }
+		function fmtHash(th) {
+			if (!ok(th) || th <= 0) return "0 TH/s";
+			var v = th * 1e12, u = ["H/s", "kH/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"], i = 0;
+			while (v >= 1000 && i < u.length - 1) { v /= 1000; i++; }
+			return (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)) + " " + u[i];
+		}
+		function fmtNative(v) {
+			if (!ok(v) || v <= 0) return "0";
+			if (v < 1000) return v.toFixed(0);
+			var u = ["k", "M", "G", "T", "P", "E", "Z"], i = 0; v /= 1000;
+			while (v >= 999.95 && i < u.length - 1) { v /= 1000; i++; }
+			return v.toFixed(1) + u[i];
+		}
+		function tile(label, val, sub) { return '<div class="kv"><span class="label">' + label + '</span><span class="val">' + val + '</span><span class="sub">' + (sub || "&nbsp;") + "</span></div>"; }
+		function colIdx(heads, re) { for (var i = 0; i < heads.length; i++) if (re.test(heads[i])) return i; return -1; }
+		function cell(tr, heads, i) { return (i >= 0 && tr.cells.length === heads.length) ? tr.cells[i] : null; }
+		function rejClass(p) { return p < 1 ? "ok" : p < 5 ? "warn" : "bad"; }
+		function numHead(t, idxs) {
+			var r = t.tHead && t.tHead.rows[0];
+			if (!r) return;
+			idxs.forEach(function (k) { if (k >= 0 && r.cells[k]) r.cells[k].classList.add("num"); });
+		}
+
+		/* the Gateway sends a bare table whose first row is the heading: give it a real header and a scroll wrapper */
+		function prep(t) {
+			var first = t.rows[0], heads = [], i;
+			if (!first) return null;
+			if (!t.tHead) {
+				var thead = document.createElement("thead");
+				t.insertBefore(thead, t.firstChild);
+				thead.appendChild(first);
+				for (i = first.cells.length - 1; i >= 0; i--) {
+					var th = document.createElement("th"), old = first.cells[i];
+					th.textContent = old.textContent.replace(/\s+/g, " ").trim();
+					first.replaceChild(th, old);
+				}
+			}
+			for (i = 0; i < t.tHead.rows[0].cells.length; i++) heads.push(t.tHead.rows[0].cells[i].textContent.trim());
+			if (!t.parentNode.classList || !t.parentNode.classList.contains("table-wrap")) {
+				var w = document.createElement("div"); w.className = "table-wrap";
+				t.parentNode.insertBefore(w, t); w.appendChild(t);
+			}
+			var rows = [], tb = t.tBodies[0];
+			if (tb) for (i = 0; i < tb.rows.length; i++) rows.push(tb.rows[i]);
+			for (i = 0; i < heads.length; i++) {
+				var h = t.tHead.rows[0].cells[i];
+				if (/command/i.test(heads[i])) continue;
+				h.classList.add("sortable");
+				h.setAttribute("data-col", i);
+				h.onclick = function () {
+					var c = +this.getAttribute("data-col");
+					if (sortCol === c) sortDir = -sortDir; else { sortCol = c; sortDir = 1; }
+					applySort(t, heads);
+				};
+			}
+			return { heads: heads, rows: rows, body: tb };
+		}
+
+		function applySort(t, heads) {
+			var tb = t.tBodies[0]; if (!tb || sortCol === null) return;
+			var rows = [].slice.call(tb.rows), c = sortCol, d = sortDir;
+			function val(tr) {
+				if (tr.cells.length !== heads.length && c > 2) return null;
+				var td = tr.cells[c]; if (!td) return null;
+				var sv = td.getAttribute("data-sv");
+				if (sv !== null && sv !== "") return parseFloat(sv);
+				return td.textContent.trim().toLowerCase();
+			}
+			rows.sort(function (a, b) {
+				var x = val(a), y = val(b);
+				if (x === null && y === null) return 0;
+				if (x === null) return 1;
+				if (y === null) return -1;
+				if (typeof x === "number" && typeof y === "number") return (x - y) * d;
+				return String(x) < String(y) ? -d : String(x) > String(y) ? d : 0;
+			});
+			for (var i = 0; i < rows.length; i++) tb.appendChild(rows[i]);
+			var ths = t.tHead.rows[0].cells;
+			for (var j = 0; j < ths.length; j++) {
+				var old = ths[j].querySelector(".arr"); if (old) old.parentNode.removeChild(old);
+				if (j === c) { var s = document.createElement("span"); s.className = "arr"; s.textContent = d > 0 ? "▲" : "▼"; ths[j].appendChild(s); }
+			}
+		}
+
+		function applyFilter(t) {
+			var tb = t.tBodies[0], shown = 0, total = 0, q = flt.toLowerCase();
+			if (!tb) return;
+			for (var i = 0; i < tb.rows.length; i++) {
+				var tr = tb.rows[i], show = true;
+				total++;
+				if (q && tr.textContent.toLowerCase().indexOf(q) < 0) show = false;
+				if (hideIdle && tr.getAttribute("data-sub") === "0") show = false;
+				tr.style.display = show ? "" : "none";
+				if (show) shown++;
+			}
+			var el = document.getElementById("shown");
+			if (el) el.textContent = (q || hideIdle) ? shown + " of " + total + " shown" : "";
+		}
+
+		/* ---------------------------------------------------------- pages --- */
+		var PAGES = {
+			clients: function (t, info) {
+				var h = info.heads, iHost = colIdx(h, /host/i), iUser = colIdx(h, /user/i), iLast = colIdx(h, /last/i), iV = colIdx(h, /vdiff/i),
+					iA = colIdx(h, /diffa/i), iR = colIdx(h, /diffr/i), iB = colIdx(h, /best/i), iHr = colIdx(h, /hashrate/i), iUa = colIdx(h, /agent/i), iSub = colIdx(h, /subbed/i);
+				var subs = 0, sumAcc = 0, sumRej = 0, maxHr = -1, best = null, bestHr = 0, i;
+				numHead(t, [iLast, iV, iA, iR, iB, iHr]);
+				var bestShare = 0;
+				for (i = 0; i < info.rows.length; i++) {
+					var tr = info.rows[i], full = tr.cells.length === h.length;
+					tr.setAttribute("data-sub", full ? "1" : "0");
+					if (!full) tr.classList.add("idle");
+					if (tr.cells[1]) tr.cells[1].classList.add("mono");
+					var u = iUser >= 0 ? tr.cells[iUser] : null;
+					if (u) { u.classList.add("user"); u.title = u.textContent; }
+					if (!full) continue;
+					subs++;
+					[iLast, iV, iA, iR, iB, iHr].forEach(function (k) { if (k >= 0) tr.cells[k].classList.add("num"); });
+					var tdL = cell(tr, h, iLast); if (tdL) tdL.setAttribute("data-sv", /n\/a/i.test(tdL.textContent) ? "1e9" : String(num(tdL.textContent)));
+					var tdV = cell(tr, h, iV); if (tdV) { tdV.setAttribute("data-sv", String(si(tdV.textContent))); tdV.textContent = gwConv(tdV.textContent); }
+					var tdA = cell(tr, h, iA);
+					if (tdA) { tdA.setAttribute("data-sv", String(si(tdA.textContent))); var ma = /\((\d+)\)/.exec(tdA.textContent); if (ma) sumAcc += +ma[1]; tdA.textContent = gwConv(tdA.textContent); }
+					var tdR = cell(tr, h, iR);
+					if (tdR) {
+						var txt = tdR.textContent.replace(/\s+/g, " ").trim(), mr = /\((\d+)\)/.exec(txt), mp = /^(.*?)\s*([\d.]+)\s*%\s*$/.exec(txt);
+						if (mr) sumRej += +mr[1];
+						tdR.setAttribute("data-sv", String(mp ? parseFloat(mp[2]) : si(txt)));
+						if (mp) tdR.innerHTML = esc(gwConv(mp[1])) + ' <span class="pill ' + rejClass(parseFloat(mp[2])) + '">' + esc(mp[2]) + " %</span>";
+						else tdR.textContent = gwConv(txt);
+					}
+					var tdB = cell(tr, h, iB);
+					if (tdB) {
+						var bv = si(tdB.textContent);
+						tdB.setAttribute("data-sv", String(ok(bv) ? bv : 0));
+						if (ok(bv) && bv > bestShare) bestShare = bv;
+						tdB.textContent = ok(bv) && bv > 0 ? gwConv(tdB.textContent) : "—";
+					}
+					var tdH = cell(tr, h, iHr);
+					if (tdH) {
+						var hv = /n\/a/i.test(tdH.textContent) ? NaN : num(tdH.textContent);
+						tdH.setAttribute("data-sv", ok(hv) ? String(hv) : "-1");
+						if (ok(hv)) { if (hv > maxHr) maxHr = hv; if (hv > bestHr) { bestHr = hv; best = tr; } }
+					}
+					var tdU = iUa >= 0 ? tr.cells[iUa] : null; if (tdU) { tdU.classList.add("ua"); tdU.title = tdU.textContent; }
+				}
+				if (maxHr > 0) for (i = 0; i < info.rows.length; i++) {
+					var r2 = info.rows[i], c2 = cell(r2, h, iHr);
+					if (c2 && !c2.querySelector(".minibar")) {
+						var hv2 = parseFloat(c2.getAttribute("data-sv"));
+						if (ok(hv2) && hv2 >= 0) c2.insertAdjacentHTML("beforeend", '<span class="minibar"><i style="width:' + Math.max(2, hv2 / maxHr * 100).toFixed(1) + '%"></i></span>');
+					}
+				}
+				if (best && subs > 1) best.classList.add("top");
+				var ft = live.querySelector(".table-footer"), tot = ft ? num(ft.textContent) : NaN;
+				if (!ok(tot)) { tot = 0; for (i = 0; i < info.rows.length; i++) { var c3 = cell(info.rows[i], h, iHr); if (c3) { var v3 = parseFloat(c3.getAttribute("data-sv")); if (v3 > 0) tot += v3; } } }
+				var rp = (sumAcc + sumRej) > 0 ? sumRej / (sumAcc + sumRej) * 100 : NaN;
+				var bestName = "";
+				if (best) { var bu = iUser >= 0 ? best.cells[iUser].textContent : ""; bestName = bu || best.cells[1].textContent; }
+				var s = $("#sum");
+				if (s) s.innerHTML = tile("Miners connected", String(info.rows.length), subs + " subscribed to work")
+					+ tile("Total hashrate", fmtHash(tot), "estimate, active miners")
+					+ tile("Reject rate", ok(rp) ? rp.toFixed(2) + " %" : "—", (sumAcc + sumRej) > 0 ? sumRej + " of " + (sumAcc + sumRej) + " shares" : "no shares yet")
+					+ (iB >= 0 ? tile("Best share", bestShare > 0 ? gwConv(fmtNative(bestShare)) : "—", "hardest share from any miner") : "")
+					+ tile("Top miner", best ? fmtHash(bestHr) : "—", best ? esc(bestName.length > 28 ? bestName.slice(0, 27) + "…" : bestName) : "");
+				if (!info.rows.length) live.insertAdjacentHTML("beforeend", '<p class="empty-note">No miners are connected yet. Point a miner at this Gateway’s Stratum port (see <a href="/config#connect">Config → Connect your miners</a>).</p>');
+				var ps = $("#pageSub"); if (ps) ps.textContent = info.rows.length + " connection" + (info.rows.length === 1 ? "" : "s");
+			},
+
+			threads: function (t, info) {
+				var h = info.heads, iC = colIdx(h, /connection/i), iS = colIdx(h, /sub/i), iH = colIdx(h, /hashrate/i), i;
+				var conns = 0, subs = 0, tot = 0, maxH = 0;
+				numHead(t, [iC, iS, iH]);
+				for (i = 0; i < info.rows.length; i++) {
+					var tr = info.rows[i];
+					[iC, iS, iH].forEach(function (k) { if (k >= 0 && tr.cells[k]) tr.cells[k].classList.add("num"); });
+					if (tr.cells[0]) tr.cells[0].classList.add("mono");
+					if (iC >= 0) { var c = num(tr.cells[iC].textContent); if (ok(c)) conns += c; tr.cells[iC].setAttribute("data-sv", String(c)); }
+					if (iS >= 0) { var s = num(tr.cells[iS].textContent); if (ok(s)) subs += s; tr.cells[iS].setAttribute("data-sv", String(s)); }
+					if (iH >= 0) { var hv = num(tr.cells[iH].textContent); if (ok(hv)) { tot += hv; if (hv > maxH) maxH = hv; } tr.cells[iH].setAttribute("data-sv", String(hv)); }
+				}
+				if (maxH > 0 && iH >= 0) for (i = 0; i < info.rows.length; i++) {
+					var hv2 = parseFloat(info.rows[i].cells[iH].getAttribute("data-sv"));
+					if (ok(hv2)) info.rows[i].cells[iH].insertAdjacentHTML("beforeend", '<span class="minibar"><i style="width:' + Math.max(2, hv2 / maxH * 100).toFixed(1) + '%"></i></span>');
+				}
+				var sm = $("#sum");
+				if (sm) sm.innerHTML = tile("Threads in use", String(info.rows.length), "with at least one client")
+					+ tile("Connections", String(conns), "across all threads")
+					+ tile("Subscribed", String(subs), "receiving work")
+					+ tile("Approx. hashrate", fmtHash(tot), "sum of all threads");
+				if (!info.rows.length) live.insertAdjacentHTML("beforeend", '<p class="empty-note">No Stratum thread has a client right now.</p>');
+				var ps = $("#pageSub"); if (ps) ps.textContent = info.rows.length + " thread" + (info.rows.length === 1 ? "" : "s") + " in use";
+			},
+
+			coinbaser: function (t, info) {
+				var h = info.heads, iV = colIdx(h, /value/i), iA = colIdx(h, /address/i), i, total = 0, vals = [];
+				numHead(t, [iV]);
+				for (i = 0; i < info.rows.length; i++) { var v = iV >= 0 ? num(info.rows[i].cells[iV].textContent) : NaN; vals.push(v); if (ok(v)) total += v; }
+				var max = 0, maxRow = -1;
+				for (i = 0; i < info.rows.length; i++) {
+					var tr = info.rows[i], tv = vals[i];
+					if (ok(tv) && tv > max) { max = tv; maxRow = i; }
+					if (iV >= 0) {
+						var cv = tr.cells[iV]; cv.classList.add("num"); cv.setAttribute("data-sv", String(tv));
+						if (ok(tv) && total > 0) cv.insertAdjacentHTML("beforeend", ' <span class="muted">' + (tv / total * 100).toFixed(1) + ' %</span><span class="minibar"><i style="width:' + Math.max(1, tv / total * 100).toFixed(1) + '%"></i></span>');
+					}
+					if (iA >= 0) {
+						var ca = tr.cells[iA], addr = ca.textContent.trim();
+						ca.classList.add("mono"); ca.style.overflowWrap = "anywhere";
+						ca.innerHTML = '<span class="grow">' + esc(addr) + '</span> <button type="button" class="copy" data-copy-text="' + esc(addr) + '">Copy</button>';
+					}
+				}
+				if (maxRow >= 0 && info.rows.length > 1) info.rows[maxRow].classList.add("top");
+				var sm = $("#sum");
+				if (sm) sm.innerHTML = tile("Payout outputs", String(info.rows.length), "in the coinbase transaction")
+					+ tile("Total", total.toFixed(8) + " BTC", "block subsidy + fees")
+					+ tile("Largest output", ok(max) && max > 0 ? max.toFixed(8) + " BTC" : "—", max > 0 && total > 0 ? (max / total * 100).toFixed(1) + " % of the block" : "");
+				if (!info.rows.length) live.insertAdjacentHTML("beforeend", '<p class="empty-note">Waiting for a block template from your node.</p>');
+				var ps = $("#pageSub"); if (ps) ps.textContent = info.rows.length + " output" + (info.rows.length === 1 ? "" : "s");
+			}
+		};
+
+		function enhance() {
+			var t = live.querySelector("table"), sum = $("#sum"), tools = $("#tools");
+			if (!t) { if (sum) sum.classList.add("hidden"); if (tools) tools.classList.add("hidden"); return false; }
+			if (sum) sum.classList.remove("hidden"); if (tools) tools.classList.remove("hidden");
+			var info = prep(t); if (!info) return false;
+			if (PAGES[page]) { try { PAGES[page](t, info); } catch (e) { /* the plain table still works */ } }
+			applyFilter(t); applySort(t, info.heads);
+			return true;
+		}
+
+		/* ------------------------------------------------- copy buttons --- */
+		document.addEventListener("click", function (e) {
+			var b = e.target && e.target.closest ? e.target.closest("button.copy") : null;
+			if (!b) return;
+			var txt = b.getAttribute("data-copy-text") || "";
+			function done() { b.textContent = "Copied"; b.classList.add("done"); setTimeout(function () { b.textContent = "Copy"; b.classList.remove("done"); }, 1400); }
+			if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, done);
+			else { var ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (x) {} document.body.removeChild(ta); done(); }
+		});
+
+		/* ----------------------------------------------- filter + live --- */
+		var q = document.getElementById("q"), hi = document.getElementById("hideIdle");
+		if (q) q.addEventListener("input", function () { flt = q.value; var t = live.querySelector("table"); if (t) applyFilter(t); });
+		if (hi) hi.addEventListener("change", function () { hideIdle = hi.checked; var t = live.querySelector("table"); if (t) applyFilter(t); });
+
+		function pill(state, text) {
+			var p = document.getElementById("livePill"), tx = document.getElementById("liveText");
+			if (!p) return;
+			p.className = "pill" + (state === "ok" ? " live ok" : state === "bad" ? " bad" : "");
+			if (tx) tx.textContent = text;
+		}
+		var busy = false;
+		function refresh() {
+			if (paused || document.hidden || busy) return;
+			busy = true;
+			var ac = window.AbortController ? new AbortController() : null, to = setTimeout(function () { if (ac) ac.abort(); }, 8000);
+			fetch(location.href, { cache: "no-store", credentials: "same-origin", signal: ac ? ac.signal : undefined }).then(function (r) {
+				if (!r.ok) throw new Error(r.status);
+				return r.text();
+			}).then(function (txt) {
+				var doc = new DOMParser().parseFromString(txt, "text/html"), nl = doc.getElementById("live");
+				if (!nl || !nl.querySelector("table")) throw new Error("signed out");
+				live.innerHTML = nl.innerHTML;
+				enhance();
+				var d = new Date(); pill("ok", "live");
+				var u = document.getElementById("upd"); if (u) u.textContent = "Updated " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()) + " · " + gwEvery();
+			}).catch(function (e) {
+				pill("bad", /signed out|401|403/.test(String(e && e.message)) ? "sign in again" : "no answer");
+				var u = document.getElementById("upd"); if (u) u.textContent = "Could not refresh. Reload the page to sign in again.";
+			}).then(function () { clearTimeout(to); busy = false; });
+		}
+		var pl = document.getElementById("pauseLink");
+		if (pl) pl.addEventListener("click", function (e) { e.preventDefault(); paused = !paused; pl.textContent = paused ? "resume" : "pause"; pill(paused ? "" : "ok", paused ? "paused" : "live"); if (!paused) refresh(); });
+		window.addEventListener("storage", function () { refresh(); schedule(); });
+		document.addEventListener("datum:refresh", function () { setTimeout(refresh, 400); });
+		document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
+
+		function schedule() { if (timer) clearInterval(timer); timer = null; var ms = gwRefreshMs(); if (ms) timer = setInterval(refresh, ms); var u = document.getElementById("upd"); if (u && !timer) u.textContent = gwEvery(); }
+		var has = enhance();
+		if (has) { schedule(); }
+		else {
+			var lp = document.getElementById("livePill"); if (lp) lp.classList.add("hidden");
+			var up = document.getElementById("upd"); if (up) up.parentNode.classList.add("hidden");
+		}
+	})();
+	</script>
+</body>
+</html>

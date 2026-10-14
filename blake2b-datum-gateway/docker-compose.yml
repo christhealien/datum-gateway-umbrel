@@ -1,0 +1,29 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      # <app-id>_<service-name>_1
+      APP_HOST: blake2b-datum-gateway_web_1
+      APP_PORT: 7152
+      # The app has its own sign-in page (same as Blake2b ASIC Control), so skip Umbrel's to avoid signing in twice
+      PROXY_AUTH_ADD: "false"
+
+  web:
+    # Built from datum-app/ by GitHub Actions (.github/workflows/image.yml) for amd64 and arm64
+    image: ghcr.io/christhealien/blake2b-datum-gateway:1.0.0
+    user: "1000:1000"
+    init: true
+    restart: on-failure
+    stop_grace_period: 15s
+    ports:
+      - 23334:23334        # Stratum: point your miners here
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
+    environment:
+      APP_BITCOIN_NODE_IP: $APP_BITCOIN_NODE_IP
+      APP_BITCOIN_RPC_PORT: $APP_BITCOIN_RPC_PORT
+      APP_BITCOIN_RPC_USER: $APP_BITCOIN_RPC_USER
+      APP_BITCOIN_RPC_PASS: $APP_BITCOIN_RPC_PASS
+      APP_PASSWORD: $APP_PASSWORD
+      DATUM_BEHIND_PROXY: "1"   # trust the client address Umbrel's app_proxy forwards (sign-in back-off)

@@ -1,0 +1,68 @@
+manifestVersion: 1
+id: blake2b-datum-gateway
+name: DATUM Gateway (blake2b)
+tagline: Mine with your own node and the DATUM protocol, with a redesigned dashboard
+icon: https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/icon.svg?v=1.0.0
+category: bitcoin
+version: "1.0.0"
+port: 8791
+description: >-
+  The DATUM Gateway from the Open Source DATUM project (OCEAN), running against your own Bitcoin
+  node. Your miners connect to the Gateway over Stratum; the Gateway builds the block templates
+  itself from your node and, if you choose, connects to a DATUM pool for decentralized pooled
+  mining. Rewards are paid straight to the address you set.
+
+
+  This build keeps the upstream gateway unchanged and replaces only its web pages with a cleaner
+  dashboard: Status with a 24-hour hashrate graph, shares and the current stratum job; sortable,
+  filterable Clients and Threads lists with reject rates and hashrate bars; the Coinbaser; and a
+  Config page with the connection details for your miners, plus a restart button.
+
+
+  Sign in with the username and password shown here (the same kind of login as Blake2b ASIC
+  Control; change it under Account). One sign-in covers every page, including Config: no second
+  prompt. A short setup page then asks for your reward address. Point miners at
+  stratum+tcp://umbrel.local:23334. The Gateway is built from the newest upstream release.
+developer: Open Source DATUM project (upstream); dashboard and packaging by christhealien
+website: https://github.com/christhealien/datum-gateway-umbrel
+dependencies:
+  - bitcoin
+repo: https://github.com/christhealien/datum-gateway-umbrel
+support: https://github.com/christhealien/datum-gateway-umbrel/issues
+submitter: christhealien
+submission: https://github.com/christhealien/datum-gateway-umbrel
+gallery:
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/1.png?v=1.0.0
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/2.png?v=1.0.0
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/3.png?v=1.0.0
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/4.png?v=1.0.0
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/5.png?v=1.0.0
+releaseNotes: |-
+  **1.0.0: first release**
+
+  - Redesigned dashboard (Status, Clients, Threads, Coinbaser, Config) with light and dark themes and a 24-hour hashrate graph.
+  - One sign-in page like Blake2b ASIC Control: no second prompt on Config.
+  - Per-client **Best Share** column, and a Display setting for share numbers (like DATUM, the miner's own, or both).
+  - Choose the auto-refresh interval; restart the Gateway from Config or Status.
+  - First-run setup page for the reward address; waits for your Bitcoin node (Knots or Core) to finish syncing.
+  - Faster new-block detection (checks 4 times a second), so miners switch to a new block sooner.
+  - Home-screen widget with connections and hashrate.
+path: ""
+deterministicPassword: true
+defaultUsername: umbrel
+widgets:
+  - id: "gateway"
+    type: "three-stats"
+    refresh: "30s"
+    endpoint: "web:7152/umbrel-api"
+    link: ""
+    example:
+      type: "three-stats"
+      link: ""
+      items:
+        - title: "Connections"
+          text: "5"
+          subtext: "Worker"
+        - title: "Hashrate"
+          text: "11.08"
+          subtext: "TH/sec"
