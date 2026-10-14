@@ -12,6 +12,8 @@ on:
 permissions:
   contents: read
   packages: write
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -62,11 +64,18 @@ jobs:
           if [ -z "$STORE_TOKEN" ]; then echo "::notice::STORE_TOKEN is not set: copy the app folder into the store by hand (tools/publish_to_store.sh)"; exit 0; fi
           auth="$(printf 'x-access-token:%s' "$STORE_TOKEN" | base64 -w0)"
           echo "::add-mask::$auth"
-          git -c "http.extraHeader=Authorization: Basic $auth" clone "https://github.com/$OWNER/blake2b.git" /tmp/store
+          if ! git -c "http.extraHeader=Authorization: Basic $auth" clone "https://github.com/$OWNER/blake2b.git" /tmp/store; then
+            echo "::warning::Could not clone $OWNER/blake2b. Check that STORE_TOKEN is a token with Contents read+write on that repo. The store's own sync-apps workflow will still pick this release up."
+            exit 0
+          fi
           rm -rf /tmp/store/blake2b-datum-gateway
           cp -r blake2b-datum-gateway /tmp/store/
           cd /tmp/store
           git add -A
           git diff --cached --quiet && { echo "store already up to date"; exit 0; }
           git -c user.name=github-actions -c user.email=actions@users.noreply.github.com commit -m "blake2b-datum-gateway $VERSION"
-          git -c "http.extraHeader=Authorization: Basic $auth" push origin HEAD
+          branch="$(git rev-parse --abbrev-ref HEAD)"
+          if ! git -c "http.extraHeader=Authorization: Basic $auth" push origin "HEAD:$branch"; then
+            echo "::warning::Push to $OWNER/blake2b was refused (token needs Contents: write). The store's sync-apps workflow will still pick this release up."
+            exit 0
+          fi
