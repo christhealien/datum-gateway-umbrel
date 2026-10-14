@@ -1,0 +1,41 @@
+name: image
+# Push a tag like datum-v1.0.1 to build the image, push it to this Gitea's registry and refresh the Gitea test store.
+# Needs: a runner with Docker; repo secret REGISTRY_TOKEN (token with write:package);
+# repo secret REPO_TOKEN (token with repository write, for the store repo "blake2b" under the same owner);
+# and, if your Gitea is plain HTTP, your runner's Docker allowed to use it as an insecure registry.
+on:
+  push:
+    tags: ["datum-v*"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and push the image
+        env:
+          TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          set -eu
+          ver="${GITHUB_REF_NAME#datum-v}"
+          echo "$ver" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "bad version: $ver" >&2; exit 1; }
+          host="$(echo "${GITHUB_SERVER_URL}" | sed 's|https\?://||')"
+          owner="$(echo "${GITHUB_REPOSITORY}" | cut -d/ -f1)"
+          image="${host}/${owner}/blake2b-datum-gateway"
+          echo "$TOKEN" | docker login "$host" -u "$owner" --password-stdin
+          docker build --build-arg VERSION="$ver" --build-arg UPSTREAM_REF="$(cat UPSTREAM_TAG)" -t "$image:$ver" -t "$image:latest" datum-app
+          docker push "$image:$ver"
+          docker push "$image:latest"
+      - name: Refresh the Gitea test store (only after the image is pushed)
+        env:
+          REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
+        run: |
+          set -eu
+          base="${GITHUB_SERVER_URL}"; owner="$(echo "${GITHUB_REPOSITORY}" | cut -d/ -f1)"
+          git -c "http.extraHeader=Authorization: token ${REPO_TOKEN}" clone "${base}/${owner}/blake2b.git" /tmp/store
+          rm -rf /tmp/store/blake2b-datum-gateway && cp -r blake2b-datum-gateway /tmp/store/
+          python3 tools/retarget.py gitea --url "$base" --owner "$owner" --app /tmp/store/blake2b-datum-gateway
+          cd /tmp/store
+          git add -A
+          git diff --cached --quiet && exit 0
+          git -c user.name=ci -c user.email=ci@localhost commit -m "blake2b-datum-gateway ${GITHUB_REF_NAME#datum-v} (upstream $(cat "$GITHUB_WORKSPACE/UPSTREAM_TAG"))"
+          git -c "http.extraHeader=Authorization: token ${REPO_TOKEN}" push origin HEAD

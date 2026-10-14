@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="UTF-8">
+	<title>DATUM Gateway Configuration</title>
+	<link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico">
+	<link rel="stylesheet" type="text/css" href="/assets/style.css">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<script>
+	(function(){var K="gc-theme",t="dark";try{if(localStorage.getItem(K)==="light")t="light"}catch(e){}
+	function a(){document.documentElement.setAttribute("data-theme",t);var b=document.querySelectorAll("[data-theme-toggle]");for(var i=0;i<b.length;i++){b[i].innerHTML=t==="light"?'☾<span class="tl"> Dark</span>':'☀<span class="tl"> Light</span>'}}
+	a();document.addEventListener("DOMContentLoaded",a);
+	document.addEventListener("click",function(e){var b=e.target&&e.target.closest?e.target.closest("[data-theme-toggle]"):null;if(!b)return;t=t==="light"?"dark":"light";try{localStorage.setItem(K,t)}catch(x){}a();document.dispatchEvent(new CustomEvent("themechange"))})})();
+	</script>
+</head>
+<body data-page="config">
+	<header class="app">
+		<h1><img src="/assets/icons/datum_logo.svg" alt="" width="30" height="30"><span><span class="brand">DATUM</span> Gateway</span></h1>
+		<nav class="tabs">
+			<a href="/">Status</a>
+			<a href="/clients">Clients</a>
+			<a href="/threads">Threads</a>
+			<a href="/coinbaser">Coinbaser</a>
+			<a href="/config" class="active">Config</a>
+		</nav>
+		<div class="spacer"></div>
+		<div class="hdr-right">
+			<a class="btn" href="/account">Account</a>
+			<button type="button" class="theme-btn" data-theme-toggle>&#9728;<span class="tl"> Light</span></button>
+		</div>
+	</header>
+
+	<main>
+	<form action='/config' method='post' id='config_form'>
+	<input type='hidden' name='csrf' value='${*CSRF_TOKEN}' />
+	<span id="restart-required-description" class="visually-hidden">Requires Gateway restart when saved.</span>
+	${*restart_message}
+
+	<section class="panel" id="connect">
+		<div class="panel-h"><h2>Connect your miners</h2><span class="sub">point each miner at this Gateway</span></div>
+		<div class="hero-copy">
+			<code id="stratumUrl">stratum+tcp://&hellip;</code>
+			<button type="button" class="copy" id="copyUrl">Copy</button>
+		</div>
+		<p class="intro" style="margin:.5rem 0 .9rem">Use the Gateway&rsquo;s address as the pool URL. <b>Username:</b> your Bitcoin address, optionally followed by <code>.workername</code> (for example <code>bc1q&hellip;.rig1</code>). <b>Password:</b> anything. Set a failover pool on each miner so it keeps hashing if the Gateway or your node is down.</p>
+		<div class="kv-grid">
+			<div class="kv"><span class="label">Stratum port</span><span class="val" id="stratumPort">${stratum_listen_port}</span><span class="sub">miners connect here</span></div>
+			<div class="kv"><span class="label">Min share difficulty</span><span class="val">${stratum_vardiff_min}</span><span class="sub">vardiff floor</span></div>
+			<div class="kv"><span class="label">Target shares / min</span><span class="val">${stratum_vardiff_target_shares_min}</span><span class="sub">per miner</span></div>
+			<div class="kv"><span class="label">Max clients</span><span class="val">${stratum_max_clients}</span><span class="sub">before new ones are refused</span></div>
+		</div>
+	</section>
+
+	<div class="restart-warning"><strong><svg class="restart-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg> Restart on save:</strong> Changes to settings with this symbol restart DATUM Gateway when saved, briefly interrupting the web interface and miner, pool, and node connections. The restarted process uses the Gateway binary currently installed on disk.</div>
+
+	<section class="panel">
+		<div class="panel-h"><h2>Basic</h2></div>
+		<div class="field">
+			<label for="mining_pool_address" class="name">Bitcoin address</label>
+			<div class="ctl"><input maxlength="100" name="mining_pool_address" id="mining_pool_address" value="${mining_pool_address}" autocomplete="off" spellcheck="false"${*ro}></div>
+			<label for="mining_pool_address" class="tip">Mining rewards will be received by this Bitcoin address, by default.</label>
+		</div>
+		<div class="field">
+			<label for="username_behaviour" class="name">Send miner usernames to pool</label>
+			<div class="ctl">
+				<select name="username_behaviour" id="username_behaviour"${*ro}>
+					<option value="datum_pool_pass_full_users"${selected:datum_pool_pass_full_users}${disabled:*ro}>Override Bitcoin Address</option>
+					<option value="datum_pool_pass_workers"${selected:*datum_pool_pass_workers}${disabled:*ro}>Send as worker names</option>
+					<option value="private"${selected:*username_behaviour_private}${disabled:*ro}>Keep private</option>
+				</select>
+			</div>
+			<label for="username_behaviour" class="tip">The username configured in miners can be handled a few different ways.</label>
+		</div>
+		<div class="field">
+			<label for="mining_coinbase_tag_secondary" class="name">Coinbase tag</label>
+			<div class="ctl"><input maxlength="${*mining_coinbase_tag_secondary_max}" name="mining_coinbase_tag_secondary" id="mining_coinbase_tag_secondary" value="${mining_coinbase_tag_secondary}"${*ro}></div>
+			<label for="mining_coinbase_tag_secondary" id="coinbase_tag_secondary" class="tip">Arbitrary name displayed as the block creator on block explorers.</label>
+		</div>
+		<div class="field">
+			<label for="mining_coinbase_unique_id" class="name">Unique Gateway ID</label>
+			<div class="ctl"><input maxlength="5" name="mining_coinbase_unique_id" id="mining_coinbase_unique_id" value="${mining_coinbase_unique_id}" inputmode="numeric"${*ro}></div>
+			<label for="mining_coinbase_unique_id" class="tip">A number between 1 and 65535 that must be unique per Coinbase Tag.</label>
+		</div>
+		<div class="field">
+			<label for="reward_sharing" class="name">Collaborative reward sharing (pooled mining)</label>
+			<div class="ctl">
+				<select name="reward_sharing" id="reward_sharing" data-restart-required aria-describedby="restart-required-description${*restart_warning_aria_id}"${*restart_ro} onchange="reward_sharing_changed()">
+					<option value="require"${selected:datum_pooled_mining_only}${disabled:*restart_ro}>require (pooled mining only)</option>
+					<option value="prefer"${selected:*reward_sharing_prefer}${disabled:*restart_ro}>prefer (failover to non-pooled)</option>
+					<option value="never"${selected:*reward_sharing_never}${disabled:*restart_ro}>never (non-pooled only)</option>
+				</select>
+				<svg class="restart-symbol restart-field-icon" viewBox="0 0 24 24" aria-hidden="true"><title>Changing this setting requires restarting DATUM Gateway when saved.</title><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+			</div>
+			<label for="reward_sharing" class="tip">You can share rewards and share in others' rewards - or only get rewarded when you find a block yourself.</label>
+		</div>
+	</section>
+
+	<section class="panel" id="pool_settings">
+		<div class="panel-h"><h2>Pool</h2><span class="sub">the DATUM pool this Gateway talks to</span></div>
+		<div class="field">
+			<label for="datum_pool_host" class="name">Host</label>
+			<div class="ctl">
+				<input maxlength="1023" name="datum_pool_host" id="datum_pool_host" value="${*datum_pool_host}" data-restart-required aria-describedby="restart-required-description${*restart_warning_aria_id}"${*restart_ro}>
+				<svg class="restart-symbol restart-field-icon" viewBox="0 0 24 24" aria-hidden="true"><title>Changing this setting requires restarting DATUM Gateway when saved.</title><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+			</div>
+		</div>
+		<div class="field">
+			<label for="datum_pool_port" class="name">Port</label>
+			<div class="ctl">
+				<input maxlength="5" name="datum_pool_port" id="datum_pool_port" value="${datum_pool_port}" inputmode="numeric" data-restart-required aria-describedby="restart-required-description${*restart_warning_aria_id}"${*restart_ro}>
+				<svg class="restart-symbol restart-field-icon" viewBox="0 0 24 24" aria-hidden="true"><title>Changing this setting requires restarting DATUM Gateway when saved.</title><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+			</div>
+		</div>
+		<div class="field">
+			<label for="datum_pool_pubkey" class="name">Pubkey</label>
+			<div class="ctl">
+				<input maxlength="1023" name="datum_pool_pubkey" id="datum_pool_pubkey" value="${datum_pool_pubkey}" spellcheck="false" data-restart-required aria-describedby="restart-required-description${*restart_warning_aria_id}"${*restart_ro}>
+				<svg class="restart-symbol restart-field-icon" viewBox="0 0 24 24" aria-hidden="true"><title>Changing this setting requires restarting DATUM Gateway when saved.</title><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+			</div>
+			<label for="datum_pool_pubkey" class="tip">The pool&rsquo;s public key, used to open the encrypted connection. Only change it if the pool tells you to.</label>
+		</div>
+	</section>
+
+	<section class="panel">
+		<div class="panel-h"><h2>Advanced</h2></div>
+		<input type="hidden" name="checkboxes" value="stratum_fingerprint_miners mining_allow_hasher_time_rolling">
+		<div class="field sw">
+			<div class="ctl"><label class="switch" for="stratum_fingerprint_miners"><input type="checkbox" name="stratum_fingerprint_miners" id="stratum_fingerprint_miners" value="1"${checked:stratum_fingerprint_miners}${disabled:*ro}><span class="name">Fingerprint and workaround known miner bugs</span></label></div>
+			<label for="stratum_fingerprint_miners" class="tip">Lets the Gateway recognise miner models and make better use of the coinbase space.</label>
+		</div>
+		<div class="field sw">
+			<div class="ctl"><label class="switch" for="mining_allow_hasher_time_rolling"><input type="checkbox" name="mining_allow_hasher_time_rolling" id="mining_allow_hasher_time_rolling" value="1"${checked:mining_allow_hasher_time_rolling}${disabled:*ro}><span class="name">Allow hasher time rolling</span></label></div>
+			<label for="mining_allow_hasher_time_rolling" class="tip">Lets the hashing hardware roll the block time itself for BLAKE2b jobs.</label>
+		</div>
+		<div class="field">
+			<label for="bitcoind_work_update_seconds" class="name">Typical interval between job updates</label>
+			<div class="ctl">
+				<input maxlength="3" name="bitcoind_work_update_seconds" id="bitcoind_work_update_seconds" value="${bitcoind_work_update_seconds}" inputmode="numeric" data-restart-required aria-describedby="restart-required-description${*restart_warning_aria_id}"${*restart_ro}>
+				<svg class="restart-symbol restart-field-icon" viewBox="0 0 24 24" aria-hidden="true"><title>Changing this setting requires restarting DATUM Gateway when saved.</title><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+			</div>
+			<label for="bitcoind_work_update_seconds" class="tip">5-120 seconds. 40 suggested.</label>
+		</div>
+		<div class="field">
+			<label for="bitcoind_rpcurl" class="name">bitcoind RPC URL</label>
+			<div class="ctl"><input maxlength="255" name="bitcoind_rpcurl" id="bitcoind_rpcurl" value="${bitcoind_rpcurl}" spellcheck="false"${*ro}></div>
+			<label for="bitcoind_rpcurl" class="tip">Your Bitcoin node&rsquo;s RPC address. The Umbrel app fills this in from your node.</label>
+		</div>
+		<div class="field">
+			<label for="bitcoind_rpcuser" class="name">bitcoind RPC username</label>
+			<div class="ctl"><input maxlength="127" name="bitcoind_rpcuser" id="bitcoind_rpcuser" value="${bitcoind_rpcuser}" autocomplete="off" spellcheck="false"${*ro}></div>
+		</div>
+		<div class="field">
+			<label for="bitcoind_rpcpassword" class="name">bitcoind RPC password</label>
+			<div class="ctl"><input maxlength="127" name="bitcoind_rpcpassword" id="bitcoind_rpcpassword" placeholder="****************" type="password" autocomplete="new-password"${*ro}></div>
+			<label for="bitcoind_rpcpassword" class="tip">Leave blank to keep the current password.</label>
+		</div>
+	</section>
+
+	<section class="panel">
+		<div class="panel-h"><h2>Other settings</h2><span class="sub">read only here; set in the config file</span></div>
+		<div class="kv-grid wide">
+			<div class="kv"><span class="label">Primary coinbase tag</span><span class="val">${mining_coinbase_tag_primary}</span><span class="sub">replaced by the pool&rsquo;s tag when pooled</span></div>
+			<div class="kv"><span class="label">Share stale after</span><span class="val">${stratum_share_stale_seconds} s</span><span class="sub">since the job was made</span></div>
+			<div class="kv"><span class="label">Idle: no subscribe</span><span class="val">${stratum_idle_timeout_no_subscribe} s</span><span class="sub">0 = never disconnect</span></div>
+			<div class="kv"><span class="label">Idle: no shares</span><span class="val">${stratum_idle_timeout_no_shares} s</span><span class="sub">0 = never disconnect</span></div>
+			<div class="kv"><span class="label">Block notify fallback</span><span class="val">${bitcoind_notify_fallback}</span><span class="sub">poll the node for new blocks</span></div>
+			<div class="kv"><span class="label">Pool migration limit</span><span class="val">${datum_migration_max_seconds} s</span><span class="sub">time away from your pool</span></div>
+			<div class="kv"><span class="label">Pool protocol timeout</span><span class="val">${datum_protocol_global_timeout} s</span><span class="sub">before reconnecting</span></div>
+			<div class="kv"><span class="label">Web / API port</span><span class="val">${api_listen_port}</span><span class="sub">internal; this page is on 7152</span></div>
+			<div class="kv"><span class="label">Console log level</span><span class="val">${logger_log_level_console}</span><span class="sub">0 all &middot; 2 info &middot; 4 error</span></div>
+		</div>
+	</section>
+
+	<div class="savebar">
+		<button type="submit" class="primary save-button"${disabled:*ro}>Save</button>
+		<span class="state" id="saveState">No changes yet.${msg:*ro}</span>
+	</div>
+	</form>
+
+	<section class="panel" id="display">
+		<div class="panel-h"><h2>Display</h2><span class="sub">saved in this browser only</span><span class="pill" id="shareNow">Like DATUM</span></div>
+		<h3 class="grp">Share numbers</h3>
+		<p class="intro">How share and minimum difficulties are shown on Status and Clients. The Gateway counts in hashes, the same scale as DATUM and mempool. A miner counts in units of 2<sup>32</sup> hashes, so its own number is smaller. Only the display changes, so you can switch any time.</p>
+		<div class="opts" id="shareOpts">
+			<label class="opt"><input type="radio" name="sharefmt_ui" value="datum"><span class="ot"><b>Like DATUM and mempool</b> <code>70.4T</code></span><span class="od">The Gateway&rsquo;s scale, as DATUM&rsquo;s own pages show it, so you can compare them.</span></label>
+			<label class="opt"><input type="radio" name="sharefmt_ui" value="own"><span class="ot"><b>The miner&rsquo;s own numbers</b> <code>16.38K</code></span><span class="od">The number your miner itself reports.</span></label>
+			<label class="opt"><input type="radio" name="sharefmt_ui" value="both"><span class="ot"><b>Both</b> <code>70.4T (16.38K)</code></span><span class="od">DATUM&rsquo;s scale, with the miner&rsquo;s own number after it in brackets.</span></label>
+		</div>
+		<h3 class="grp">Auto refresh</h3>
+		<p class="intro">How often Status, Clients, Threads and Coinbaser update themselves. Pages stop updating while their tab is in the background.</p>
+		<div class="opts" id="refreshOpts">
+			<label class="opt"><input type="radio" name="refresh_ui" value="2"><span class="ot"><b>Every 2 seconds</b></span><span class="od">Fastest; fine on a home network.</span></label>
+			<label class="opt"><input type="radio" name="refresh_ui" value="5"><span class="ot"><b>Every 5 seconds</b></span><span class="od">The default.</span></label>
+			<label class="opt"><input type="radio" name="refresh_ui" value="10"><span class="ot"><b>Every 10 seconds</b></span></label>
+			<label class="opt"><input type="radio" name="refresh_ui" value="30"><span class="ot"><b>Every 30 seconds</b></span><span class="od">Lighter on a phone or a slow link.</span></label>
+			<label class="opt"><input type="radio" name="refresh_ui" value="0"><span class="ot"><b>Off</b></span><span class="od">Reload the page yourself. The hashrate graph then only records while you refresh.</span></label>
+		</div>
+	</section>
+
+	<section class="panel" id="gateway">
+		<div class="panel-h"><h2>Gateway</h2><span class="sub">maintenance</span></div>
+		<p class="intro">Restarts the DATUM Gateway process (not your Bitcoin node or Umbrel). Miners disconnect for a few seconds and reconnect on their own. Useful after a node restart or if the Gateway looks stuck.</p>
+		<button type="button" id="restartBtn">Restart Gateway</button>
+	</section>
+	</main>
+	<script>
+		var config_form = document.getElementById('config_form');
+		var restart_fields = config_form.querySelectorAll('[data-restart-required]');
+		var save_buttons = config_form.getElementsByClassName('save-button');
+		for (var i = 0; i < restart_fields.length; ++i) {
+			restart_fields[i].setAttribute('data-initial-value', restart_fields[i].value);
+		}
+
+		function config_restart_required() {
+			for (var i = 0; i < restart_fields.length; ++i) {
+				if (!restart_fields[i].disabled && restart_fields[i].value != restart_fields[i].getAttribute('data-initial-value')) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		var initial_state = null;
+		function form_state() {
+			var out = [], els = config_form.elements;
+			for (var i = 0; i < els.length; ++i) {
+				var el = els[i];
+				if (!el.name || el.name == 'csrf' || el.name == 'checkboxes' || el.type == 'submit') continue;
+				out.push(el.name + '=' + (el.type == 'checkbox' ? (el.checked ? '1' : '0') : el.value));
+			}
+			return out.join('&');
+		}
+
+		function update_save_buttons() {
+			var restart = config_restart_required();
+			var text = restart ? 'Save & Restart' : 'Save';
+			for (var i = 0; i < save_buttons.length; ++i) {
+				save_buttons[i].textContent = text;
+			}
+			var state = document.getElementById('saveState');
+			if (state && initial_state !== null && !state.getAttribute('data-ro')) {
+				var dirty = form_state() != initial_state;
+				var extra = state.querySelector('em') ? state.querySelector('em').outerHTML : '';
+				state.innerHTML = (dirty ? (restart ? '<em>Unsaved changes. Saving restarts the Gateway.</em>' : '<em>Unsaved changes.</em>') : 'No changes yet.') + (extra ? '<br>' + extra : '');
+			}
+		}
+
+		function reward_sharing_changed() {
+			var newvalue = document.getElementById('reward_sharing').value;
+			var fields = document.getElementById('pool_settings').getElementsByTagName('input');
+			if (newvalue == 'never' || document.getElementById('reward_sharing').getAttribute('readonly') != null) {
+				for (var i = 0; i < fields.length; ++i) {
+					fields[i].setAttribute('disabled', true);
+				}
+			} else {
+				for (var i = 0; i < fields.length; ++i) {
+					fields[i].removeAttribute('disabled');
+				}
+			}
+			update_save_buttons();
+		}
+
+		for (var i = 0; i < restart_fields.length; ++i) {
+			restart_fields[i].addEventListener('input', update_save_buttons);
+			restart_fields[i].addEventListener('change', update_save_buttons);
+		}
+		config_form.addEventListener('input', update_save_buttons);
+		config_form.addEventListener('change', update_save_buttons);
+		config_form.addEventListener('submit', function(event) {
+			if (config_restart_required() && !window.confirm('Save these changes and restart DATUM Gateway now?\n\nThe web interface and mining, pool, and node connections will be briefly interrupted. The restart will run the Gateway binary currently installed on disk, which may differ from the running version.')) {
+				event.preventDefault();
+			}
+		});
+		reward_sharing_changed();
+		initial_state = form_state();
+		if (document.querySelector('#saveState em')) document.getElementById('saveState').setAttribute('data-ro', '1');
+
+		/* the address miners should use, built from how this page was opened */
+		(function () {
+			var port = (document.getElementById('stratumPort').textContent || '').replace(/\D/g, '') || '23334';
+			var url = 'stratum+tcp://' + location.hostname + ':' + port;
+			document.getElementById('stratumUrl').textContent = url;
+			var b = document.getElementById('copyUrl');
+			b.addEventListener('click', function () {
+				function done() { b.textContent = 'Copied'; b.classList.add('done'); setTimeout(function () { b.textContent = 'Copy'; b.classList.remove('done'); }, 1400); }
+				if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, done);
+				else { var ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (x) {} document.body.removeChild(ta); done(); }
+			});
+		})();
+
+		(function () {
+			var names = { datum: "Like DATUM", own: "Miner\u2019s own", both: "Both" }, cur = "datum";
+			try { var m = localStorage.getItem("gc-sharefmt"); if (m === "own" || m === "both") cur = m; } catch (e) {}
+			var rs = document.querySelectorAll('#shareOpts input[type=radio]');
+			function show() { var n = document.getElementById("shareNow"); if (n) n.textContent = names[cur]; }
+			for (var i = 0; i < rs.length; i++) {
+				rs[i].checked = rs[i].value === cur;
+				rs[i].addEventListener("change", function () {
+					cur = this.value;
+					try { localStorage.setItem("gc-sharefmt", cur); } catch (e) {}
+					show();
+				});
+			}
+			show();
+		})();
+
+		(function () {
+			var cur = "5";
+			try { var v = localStorage.getItem("gc-refresh"); if (v === "0" || v === "2" || v === "10" || v === "30") cur = v; } catch (e) {}
+			var rs = document.querySelectorAll('#refreshOpts input[type=radio]');
+			for (var i = 0; i < rs.length; i++) {
+				rs[i].checked = rs[i].value === cur;
+				rs[i].addEventListener("change", function () { try { localStorage.setItem("gc-refresh", this.value); } catch (e) {} });
+			}
+		})();
+
+		function gwRestart(btn) {
+			if (!window.confirm("Restart the Gateway now?\n\nYour miners disconnect for a few seconds and reconnect on their own.")) return;
+			var old = btn.textContent; btn.disabled = true; btn.textContent = "Restarting…";
+			fetch("/restart", { method: "POST", credentials: "same-origin" }).catch(function () {});
+			var tries = 0;
+			(function poll() {
+				setTimeout(function () {
+					tries++;
+					fetch("/", { cache: "no-store", credentials: "same-origin" }).then(function (r) {
+						if (r.ok && tries > 1) location.reload(); else if (tries < 90) poll(); else { btn.disabled = false; btn.textContent = old; }
+					}).catch(function () { if (tries < 90) poll(); });
+				}, 2000);
+			})();
+		}
+		document.getElementById("restartBtn").addEventListener("click", function () { gwRestart(this); });
+	</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="UTF-8">
+	<title>DATUM Gateway Configuration - Restarting</title>
+	<link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico">
+	<link rel="stylesheet" type="text/css" href="/assets/style.css">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<script>
+	(function(){var K="gc-theme",t="dark";try{if(localStorage.getItem(K)==="light")t="light"}catch(e){}
+	function a(){document.documentElement.setAttribute("data-theme",t);var b=document.querySelectorAll("[data-theme-toggle]");for(var i=0;i<b.length;i++){b[i].innerHTML=t==="light"?'☾<span class="tl"> Dark</span>':'☀<span class="tl"> Light</span>'}}
+	a();document.addEventListener("DOMContentLoaded",a);
+	document.addEventListener("click",function(e){var b=e.target&&e.target.closest?e.target.closest("[data-theme-toggle]"):null;if(!b)return;t=t==="light"?"dark":"light";try{localStorage.setItem(K,t)}catch(x){}a();document.dispatchEvent(new CustomEvent("themechange"))})})();
+	</script>
+</head>
+<body data-page="config-restart">
+	<header class="app">
+		<h1><img src="/assets/icons/datum_logo.svg" alt="" width="30" height="30"><span><span class="brand">DATUM</span> Gateway</span></h1>
+		<nav class="tabs">
+			<a href="/">Status</a>
+			<a href="/clients">Clients</a>
+			<a href="/threads">Threads</a>
+			<a href="/coinbaser">Coinbaser</a>
+			<a href="/config" class="active">Config</a>
+		</nav>
+		<div class="spacer"></div>
+		<div class="hdr-right">
+			<button type="button" class="theme-btn" data-theme-toggle>&#9728;<span class="tl"> Light</span></button>
+		</div>
+	</header>
+
+	<main>
+		<section class="panel">
+			<div class="panel-h"><h2>Changes saved</h2><span class="pill warn" id="state"><span class="dot"></span><span id="stateText">restarting</span></span></div>
+			<p class="intro" style="margin-bottom:.9rem">DATUM Gateway is restarting to apply your changes. The web interface and the miner, pool and node connections are briefly interrupted. This page continues on its own once the Gateway answers again.</p>
+			<div class="bar"><span id="prog" style="width:6px"></span></div>
+			<p class="muted" id="msg" style="font-size:.84rem;margin:.6rem 0 0">Waiting for the Gateway&hellip;</p>
+			<div class="actions"><a class="btn primary" href="/config">Continue now</a><a class="btn" href="/">Go to Status</a></div>
+		</section>
+	</main>
+	<script>
+	(function () {
+		var start = Date.now(), tries = 0, done = false;
+		function bar() { var s = Math.min(1, (Date.now() - start) / 30000); document.getElementById("prog").style.width = Math.max(2, s * 100) + "%"; }
+		function ready() { done = true; document.getElementById("state").className = "pill ok"; document.getElementById("stateText").textContent = "back online"; document.getElementById("prog").style.width = "100%"; document.getElementById("msg").textContent = "The Gateway is back. Opening the settings…"; setTimeout(function () { location.href = "/config"; }, 600); }
+		function probe() {
+			if (done) return; tries++; bar();
+			fetch("/", { cache: "no-store", credentials: "same-origin" }).then(function (r) { if (r.ok && tries > 2) ready(); else setTimeout(probe, 1500); }).catch(function () { setTimeout(probe, 1500); });
+		}
+		setInterval(bar, 500);
+		setTimeout(probe, 2500);
+		setTimeout(function () { if (!done) document.getElementById("msg").textContent = "Still waiting. A restart normally takes a few seconds; if this lasts more than a minute, check the app's logs."; }, 45000);
+	})();
+	</script>
+</body>
+</html>
