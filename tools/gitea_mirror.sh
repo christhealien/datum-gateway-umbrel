@@ -6,7 +6,7 @@
 set -eu
 : "${GITEA:?set GITEA}" "${GUSER:?set GUSER}" "${GTOKEN:?set GTOKEN}"
 GH_OWNER="${GH_OWNER:-christhealien}"
-REPOS="${REPOS:-blake2b blake2b-asic-control datum-gateway-umbrel}"
+REPOS="${REPOS:-blake2b blake2b-asic-control datum-gateway-umbrel mempool-umbrel}"
 api() { curl -fsS -H "Authorization: token $GTOKEN" -H "Content-Type: application/json" "$@"; }
 case "${1:-}" in
   create)

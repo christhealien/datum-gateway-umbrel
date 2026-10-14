@@ -1,6 +1,6 @@
 			</div>
 		</section>
-		<p class="footer-note"><span id="upd">Auto refresh</span> &middot; <a href="#" id="pauseLink">pause</a></p>
+		<p class="footer-note"><span id="upd">Live</span> &middot; <a href="#" id="pauseLink">pause</a></p>
 	</main>
 	<script>
 	(function () {
@@ -16,9 +16,8 @@
 			if (!m) return NaN;
 			return parseFloat(m[1].replace(/,/g, "")) * Math.pow(1000, { "": 0, k: 1, K: 1, M: 2, G: 3, T: 4, P: 5, E: 6, Z: 7, Y: 8 }[m[2]] || 0);
 		}
-		/* auto refresh interval (Config -> Auto refresh), in this browser; 0 = off */
-		function gwRefreshMs() { try { var v = localStorage.getItem("gc-refresh"); if (v === "0" || v === "2" || v === "10" || v === "30") return +v * 1000; } catch (e) {} return 5000; }
-		function gwEvery() { var ms = gwRefreshMs(); return ms ? "refreshes every " + (ms / 1000) + " s" : "auto refresh is off"; }
+		/* the page keeps itself up to date in the background: no setting, no reload (it rests while the tab is hidden) */
+		function gwEvery() { return "updating in the background"; }
 		function ok(v) { return typeof v === "number" && isFinite(v); }
 
 		/* share numbers. The Gateway prints share difficulty in hashes (the DATUM / mempool scale).
@@ -324,13 +323,12 @@
 		}
 		var pl = document.getElementById("pauseLink");
 		if (pl) pl.addEventListener("click", function (e) { e.preventDefault(); paused = !paused; pl.textContent = paused ? "resume" : "pause"; pill(paused ? "" : "ok", paused ? "paused" : "live"); if (!paused) refresh(); });
-		window.addEventListener("storage", function () { refresh(); schedule(); });
+		window.addEventListener("storage", function () { refresh(); });
 		document.addEventListener("datum:refresh", function () { setTimeout(refresh, 400); });
 		document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
 
-		function schedule() { if (timer) clearInterval(timer); timer = null; var ms = gwRefreshMs(); if (ms) timer = setInterval(refresh, ms); var u = document.getElementById("upd"); if (u && !timer) u.textContent = gwEvery(); }
 		var has = enhance();
-		if (has) { schedule(); }
+		if (has) { timer = setInterval(refresh, 5000); var u0 = document.getElementById("upd"); if (u0) u0.textContent = gwEvery(); }
 		else {
 			var lp = document.getElementById("livePill"); if (lp) lp.classList.add("hidden");
 			var up = document.getElementById("upd"); if (up) up.parentNode.classList.add("hidden");
