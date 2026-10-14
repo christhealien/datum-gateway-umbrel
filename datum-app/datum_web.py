@@ -56,9 +56,21 @@ class Auth:
     def _hash(password, salt, iters=ITER):
         return hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iters).hex()
 
-    def set_account(self, username, password):
+    def set_account(self, username, password, temp=False):
+        # temp = the login Umbrel shows / a random first one: the owner must replace it before using the app
         salt = secrets.token_bytes(16)
-        S.write_private(self.fp, json.dumps({"username": username, "salt": salt.hex(), "iter": ITER, "hash": self._hash(password, salt)}))
+        S.write_private(self.fp, json.dumps({"username": username, "salt": salt.hex(), "iter": ITER, "hash": self._hash(password, salt), "temp": bool(temp)}))
+
+    def must_change(self):
+        return bool(self._read(self.fp).get("temp"))
+
+    def migrate(self):
+        """Accounts made before this flag existed: still on the login Umbrel shows? Then it must be changed too."""
+        d = self._read(self.fp)
+        if d.get("hash") and "temp" not in d:
+            pw = os.environ.get("APP_PASSWORD", "")
+            d["temp"] = bool(pw and self.check(str(d.get("username", "")), pw))
+            S.write_private(self.fp, json.dumps(d))
 
     def check(self, username, password):
         d = self._read(self.fp)
@@ -79,7 +91,7 @@ class Auth:
         if not pw:
             pw = secrets.token_urlsafe(12)
             print("No APP_PASSWORD given. First login: user %s, password %s" % (user, pw), flush=True)
-        self.set_account(user, pw)
+        self.set_account(user, pw, temp=True)
 
     # sessions are stored hashed, so a copy of sessions.json is no use to anyone
     @staticmethod
@@ -141,6 +153,89 @@ class Auth:
 AUTH = None
 
 
+# ------------------------------------------------------------------ hashrate history, recorded here (not in the browser)
+class History:
+    """One sample every 15 s while the Gateway runs, kept for 24 h in /data/history.json, so the graph has its
+    memory whether or not a dashboard tab is open. Row: [ms, TH/s, connections, accepted, rejected, block height]."""
+    KEEP_MS, EVERY = 86400000, int(os.environ.get("DATUM_HISTORY_EVERY", "15"))
+
+    def __init__(self, path):
+        self.path, self.lock, self.s = path, threading.Lock(), []
+        try:
+            with open(path) as f:
+                o = json.load(f)
+            cut = int(time.time() * 1000) - self.KEEP_MS
+            if isinstance(o, dict) and o.get("v") == 1 and isinstance(o.get("s"), list):
+                self.s = [r for r in o["s"] if isinstance(r, list) and len(r) == 6 and all(isinstance(x, (int, float)) for x in r) and r[0] >= cut]
+        except Exception:
+            self.s = []
+
+    def add(self, row):
+        with self.lock:
+            if self.s and row[0] - self.s[-1][0] < 5000:
+                return
+            self.s.append(row)
+            cut = row[0] - self.KEEP_MS
+            while self.s and self.s[0][0] < cut:
+                self.s.pop(0)
+
+    def save(self):
+        with self.lock:
+            data = json.dumps({"v": 1, "s": self.s}, separators=(",", ":"))
+        try:
+            S.write_private(self.path, data)
+        except OSError:
+            pass
+
+    def dump(self):
+        with self.lock:
+            return json.dumps({"v": 1, "now": int(time.time() * 1000), "s": self.s}, separators=(",", ":"))
+
+
+HISTORY = None
+
+
+def _val(page, key):
+    m = re.search(r'data-k="%s"[^>]*>([^<]*)<' % key, page)
+    return m.group(1) if m else ""
+
+
+def _num(s):
+    m = re.search(r"-?\d+(?:\.\d+)?", s.replace(",", ""))
+    return float(m.group()) if m else None
+
+
+def take_sample():
+    status, _, data = gateway_request("GET", "/", None, None)
+    if status != 200:
+        return None
+    page = data.decode("utf-8", "replace")
+    th, conn = _num(_val(page, "STRATUM_HASHRATE_ESTIMATE")), _num(_val(page, "STRATUM_TOTAL_CONNECTIONS"))
+    if th is None and conn is None:
+        return None
+    n = lambda v: int(v) if v is not None else 0
+    return [int(time.time() * 1000), round(th, 4) if th is not None else 0, n(conn),
+            n(_num(_val(page, "STRATUM_SHARES_ACCEPTED"))), n(_num(_val(page, "STRATUM_SHARES_REJECTED"))),
+            n(_num(_val(page, "STRATUM_JOB_BLOCK_HEIGHT")))]
+
+
+def sampler():
+    saved = 0.0
+    while True:
+        time.sleep(History.EVERY)
+        if STATE["mode"] != "running":
+            continue
+        try:
+            row = take_sample()
+        except Exception:
+            row = None
+        if row:
+            HISTORY.add(row)
+        if time.time() - saved > 60:
+            HISTORY.save()
+            saved = time.time()
+
+
 # ------------------------------------------------------------------ pages
 THEME_JS = """(function(){var K="gc-theme",t="dark";try{if(localStorage.getItem(K)==="light")t="light"}catch(e){}
 function a(){document.documentElement.setAttribute("data-theme",t);var b=document.querySelectorAll("[data-theme-toggle]");for(var i=0;i<b.length;i++){b[i].innerHTML=t==="light"?'\\u263e<span class="tl"> Dark</span>':'\\u2600<span class="tl"> Light</span>'}}
@@ -178,7 +273,7 @@ def shell(title, body, nav=True, user=None, active="", head=""):
 
 def page_login(error="", next_url="/", first=False):
     hint = ('<p class="tip" style="color:var(--muted);font-size:.85rem;margin-top:0">First time? Use the username and password '
-            'Umbrel shows for this app. You can change them afterwards under Account.</p>') if first else ""
+            'Umbrel shows for this app. Right after signing in you will be asked to choose your own.</p>') if first else ""
     return shell("Sign in · DATUM Gateway", """<h1 class="big"><b>DATUM</b> Gateway</h1><section class="panel"><div class="panel-h"><h2>Sign in</h2></div>%s
 <form method="post" action="/login" class="stack" autocomplete="on"><input type="hidden" name="next" value="%s">
 <label>Username<input name="username" autocomplete="username" required autofocus></label>
@@ -188,8 +283,10 @@ def page_login(error="", next_url="/", first=False):
                  % (hint, e(next_url), eline(error), SESSION_DAYS), nav=False)
 
 
-def page_account(user, msg="", err=""):
-    return shell("Account · DATUM Gateway", """<section class="panel"><div class="panel-h"><h2>Account</h2><span class="sub">signed in as %s</span></div>
+def page_account(user, msg="", err="", force=False):
+    intro = ('<p style="margin:0 0 .9rem">You are still using the login Umbrel shows for this app. Choose your own username and password '
+             'before you continue: anyone who can open the app page could otherwise sign in with it.</p>') if force else ""
+    return shell("Account · DATUM Gateway", """<section class="panel"><div class="panel-h"><h2>%s</h2><span class="sub">signed in as %s</span></div>%s
 <form method="post" action="/account" class="stack" autocomplete="on">
 <label>Current password<input name="current" type="password" autocomplete="current-password" required></label>
 <label>New username (leave empty to keep it)<input name="username" autocomplete="username"></label>
@@ -198,7 +295,7 @@ def page_account(user, msg="", err=""):
 %s%s<button type="submit" class="primary">Change login</button></form>
 <form method="post" action="/logout" style="margin-top:1rem;display:flex;justify-content:space-between;align-items:center;gap:1rem">
 <span style="color:var(--muted);font-size:.8rem">Changing it signs out every other device.</span><button type="submit">Log out</button></form></section>"""
-                 % (e(user), eline(err), eline(msg, True)), user=user, active="account")
+                 % ("Choose your own login" if force else "Account", e(user), intro, eline(err), eline(msg, True)), user=user, active="account", nav=not force)
 
 
 def page_setup(err="", addr="", tag="DATUM Gateway", mode="prefer"):
@@ -392,6 +489,14 @@ class H(BaseHTTPRequestHandler):
                 return self.redirect("/login?next=" + urllib.parse.quote(self.path, safe="/?=&"))
             return self.send_page(json.dumps({"error": "sign in required"}), 401, extra=(("Content-Type", "application/json"),))
 
+        # still on the login Umbrel shows: nothing but the Account page (and signing out) until it is replaced
+        if AUTH.must_change() and path not in ("/account", "/logout"):
+            if self.command in ("GET", "HEAD") and "json" not in (self.headers.get("Accept") or ""):
+                return self.redirect("/account")
+            return self.send_page(json.dumps({"error": "choose your own login first"}), 403, extra=(("Content-Type", "application/json"),))
+
+        if path == "/history.json" and self.command == "GET":
+            return self.send_page(HISTORY.dump(), extra=(("Content-Type", "application/json"), ("Cache-Control", "no-store")))
         if path == "/logout" and post:
             AUTH.drop(self.token())
             return self.redirect("/login", cookie=self.cookie("", 0))
@@ -440,28 +545,34 @@ class H(BaseHTTPRequestHandler):
         return self.send_page(page_login("Wrong username or password.", nxt), 401)
 
     def account(self, user):
+        force = AUTH.must_change()
         if self.command != "POST":
-            return self.send_page(page_account(user))
+            return self.send_page(page_account(user, force=force))
         f = self.form()
         if f is None:
-            return self.send_page(page_account(user, err="Bad request."), 400)
+            return self.send_page(page_account(user, err="Bad request.", force=force), 400)
         if AUTH.blocked_for(self.client()):
-            return self.send_page(page_account(user, err="Too many attempts. Wait a little."), 429)
+            return self.send_page(page_account(user, err="Too many attempts. Wait a little.", force=force), 429)
         if not AUTH.check(AUTH.username(), f.get("current", "")):
             AUTH.failed(self.client())
-            return self.send_page(page_account(user, err="The current password is wrong."), 403)
+            return self.send_page(page_account(user, err="The current password is wrong.", force=force), 403)
         new_user = f.get("username", "").strip() or AUTH.username()
         pw, pw2 = f.get("password", ""), f.get("password2", "")
         if not re.match(r"^[\w.@+-]{1,64}$", new_user):
-            return self.send_page(page_account(user, err="Username: 1-64 letters, digits or . _ @ + -"), 400)
+            return self.send_page(page_account(user, err="Username: 1-64 letters, digits or . _ @ + -", force=force), 400)
         if len(pw) < 8 or len(pw) > 256:
-            return self.send_page(page_account(user, err="The password needs at least 8 characters."), 400)
+            return self.send_page(page_account(user, err="The password needs at least 8 characters.", force=force), 400)
         if pw != pw2:
-            return self.send_page(page_account(user, err="The two new passwords differ."), 400)
+            return self.send_page(page_account(user, err="The two new passwords differ.", force=force), 400)
+        if pw == f.get("current", "") or (os.environ.get("APP_PASSWORD") and pw == os.environ["APP_PASSWORD"]):
+            return self.send_page(page_account(user, err="Pick a new password, not the one you already use or the one Umbrel shows.", force=force), 400)
         AUTH.set_account(new_user, pw)
         AUTH.drop_all()
         token = AUTH.new_session(new_user)
-        return self.send_page(page_account(new_user, msg="Login changed. Other devices were signed out."), cookie=self.cookie(token, SESSION_DAYS * 86400))
+        cookie = self.cookie(token, SESSION_DAYS * 86400)
+        if force:
+            return self.redirect("/", cookie=cookie)
+        return self.send_page(page_account(new_user, msg="Login changed. Other devices were signed out."), cookie=cookie)
 
     def do_setup(self):
         f = self.form()
@@ -519,6 +630,10 @@ def run(conf_path):
     conf = S.sync(conf_path)
     AUTH = Auth(os.path.dirname(conf_path) or ".")
     AUTH.bootstrap()
+    AUTH.migrate()
+    global HISTORY
+    HISTORY = History(os.path.join(os.path.dirname(conf_path) or ".", "history.json"))
+    threading.Thread(target=sampler, daemon=True).start()
 
     srv = ThreadingHTTPServer(("0.0.0.0", PUBLIC_PORT), H)
     srv.daemon_threads = True
@@ -526,6 +641,7 @@ def run(conf_path):
     child = CHILD
 
     def stop(*_):
+        HISTORY.save()
         p = child["p"]
         if p and p.poll() is None:
             p.terminate()

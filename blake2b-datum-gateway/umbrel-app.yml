@@ -2,9 +2,9 @@ manifestVersion: 1
 id: blake2b-datum-gateway
 name: DATUM Gateway (blake2b)
 tagline: Mine with your own node and the DATUM protocol, with a redesigned dashboard
-icon: https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/icon.svg?v=1.0.4
+icon: https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/icon.svg?v=1.0.5
 category: bitcoin
-version: "1.0.4"
+version: "1.0.5"
 port: 8791
 description: >-
   The DATUM Gateway from the Open Source DATUM project (OCEAN), running against your own Bitcoin
@@ -32,12 +32,16 @@ support: https://github.com/christhealien/datum-gateway-umbrel/issues
 submitter: christhealien
 submission: https://github.com/christhealien/datum-gateway-umbrel
 gallery:
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/1.png?v=1.0.4
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/2.png?v=1.0.4
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/3.png?v=1.0.4
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/4.png?v=1.0.4
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/5.png?v=1.0.4
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/1.png?v=1.0.5
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/2.png?v=1.0.5
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/3.png?v=1.0.5
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/4.png?v=1.0.5
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/5.png?v=1.0.5
 releaseNotes: |-
+  **1.0.5**
+
+  - Hashrate graph now has a memory: the app records it itself every 15 s (even with no tab open) and the graph remembers the 1 h / 6 h / 24 h range you picked. Refresh runs in the background, so the Auto refresh setting is gone. First sign-in with the login Umbrel shows now asks you to choose your own.
+
   **1.0.4**
 
   - CI: store step no longer fails the build

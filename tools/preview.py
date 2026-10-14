@@ -279,6 +279,17 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, fill(rd("config_errors.html"), lambda t: "<div class='err'>Invalid Bitcoin Address</div><div class='err'>Coinbase Tag is too long</div>"))
             if p == "/config-restart":
                 return self.send(200, rd("config_restart.html"))
+            if p == "/history.json":
+                # what the app's own recorder would hold: 24 h, one sample every 30 s here, with a restart gap
+                now, rows = int(time.time() * 1000), []
+                for i in range(24 * 3600, -1, -30):
+                    if 5 * 3600 < i < 5 * 3600 + 900:
+                        continue  # the app was restarting: no samples
+                    th = 11.3 + 0.35 * math.sin(i / 1700.0) + 0.18 * math.sin(i / 230.0)
+                    if 15 * 3600 < i < 15 * 3600 + 1500:
+                        th *= 0.55
+                    rows.append([now - i * 1000, round(th, 3), 4, 9000 + int((24 * 3600 - i) * 0.12), 21, 912300 + int((24 * 3600 - i) / 600)])
+                return self.send(200, json.dumps({"v": 1, "now": now, "s": rows}, separators=(",", ":")).encode(), "application/json")
             if p == "/umbrel-api":
                 return self.send(200, json.dumps({"type": "three-stats", "refresh": "30s", "link": "", "items": [{"title": "Connections", "text": str(len(s["miners"])), "subtext": "Worker"}, {"title": "Hashrate", "text": "%.2f" % s["th"], "subtext": "TH/s"}]}).encode(), "application/json")
             if p == "/assets/style.css":
