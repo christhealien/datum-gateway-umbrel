@@ -45,7 +45,7 @@
 		<p class="intro" style="margin:.5rem 0 .9rem">Use the Gateway&rsquo;s address as the pool URL. <b>Username:</b> your Bitcoin address, optionally followed by <code>.workername</code> (for example <code>bc1q&hellip;.rig1</code>). <b>Password:</b> anything. Set a failover pool on each miner so it keeps hashing if the Gateway or your node is down.</p>
 		<div class="kv-grid">
 			<div class="kv"><span class="label">Stratum port</span><span class="val" id="stratumPort">${stratum_listen_port}</span><span class="sub">miners connect here</span></div>
-			<div class="kv"><span class="label">Min share difficulty</span><span class="val">${stratum_vardiff_min}</span><span class="sub">vardiff floor</span></div>
+			<div class="kv"><span class="label">Min share difficulty</span><span class="val" id="vdMin" data-raw="${stratum_vardiff_min}">${stratum_vardiff_min}</span><span class="sub">vardiff floor</span></div>
 			<div class="kv"><span class="label">Target shares / min</span><span class="val">${stratum_vardiff_target_shares_min}</span><span class="sub">per miner</span></div>
 			<div class="kv"><span class="label">Max clients</span><span class="val">${stratum_max_clients}</span><span class="sub">before new ones are refused</span></div>
 		</div>
@@ -180,7 +180,7 @@
 	<section class="panel" id="display">
 		<div class="panel-h"><h2>Display</h2><span class="sub">saved in this browser only</span><span class="pill" id="shareNow">Like DATUM</span></div>
 		<h3 class="grp">Share numbers</h3>
-		<p class="intro">How share and minimum difficulties are shown on Status and Clients. The Gateway counts in hashes, the same scale as DATUM and mempool. A miner counts in units of 2<sup>32</sup> hashes, so its own number is smaller. Only the display changes, so you can switch any time.</p>
+		<p class="intro">How every difficulty is shown: shares, best share, minimum and network difficulty, on Status, Clients and Config. The Gateway counts in hashes, the same scale as DATUM and mempool. A miner counts in units of 2<sup>32</sup> hashes, so its own number is smaller. Only the display changes, so you can switch any time.</p>
 		<div class="opts" id="shareOpts">
 			<label class="opt"><input type="radio" name="sharefmt_ui" value="datum"><span class="ot"><b>Like DATUM and mempool</b> <code>70.4T</code></span><span class="od">The Gateway&rsquo;s scale, as DATUM&rsquo;s own pages show it, so you can compare them.</span></label>
 			<label class="opt"><input type="radio" name="sharefmt_ui" value="own"><span class="ot"><b>The miner&rsquo;s own numbers</b> <code>16.38K</code></span><span class="od">The number your miner itself reports.</span></label>
@@ -288,6 +288,21 @@
 			});
 		})();
 
+		/* share numbers helper (same as on Status/Clients) */
+		function gwMode() { try { var m = localStorage.getItem("gc-sharefmt"); if (m === "own" || m === "both") return m; } catch (e) {} return "datum"; }
+		function gwConv(s) {
+			var mode = gwMode(), str = String(s == null ? "" : s);
+			if (mode === "datum") return str;
+			var m = /(\d+(?:\.\d+)?)\s*([kKMGTPEZ]?)/.exec(str);
+			if (!m || parseFloat(m[1]) === 0) return str;
+			var v = parseFloat(m[1]) * Math.pow(1000, { "": 0, k: 1, K: 1, M: 2, G: 3, T: 4, P: 5, E: 6, Z: 7 }[m[2]] || 0) / 4294967296, u = ["", "K", "M", "G", "T", "P", "E"], i = 0;
+			while (v >= 1000 && i < u.length - 1) { v /= 1000; i++; }
+			var conv = (v >= 100 ? v.toFixed(0) : v.toFixed(2)) + u[i], end = m.index + m[0].length;
+			return mode === "both" ? str.slice(0, end) + " (" + conv + ")" + str.slice(end) : str.slice(0, m.index) + conv + str.slice(end);
+		}
+		function applyDiffs() { var e = document.getElementById("vdMin"); if (e) e.textContent = gwConv(e.getAttribute("data-raw")); }
+		applyDiffs();
+		window.addEventListener("storage", applyDiffs);
 		(function () {
 			var names = { datum: "Like DATUM", own: "Miner\u2019s own", both: "Both" }, cur = "datum";
 			try { var m = localStorage.getItem("gc-sharefmt"); if (m === "own" || m === "both") cur = m; } catch (e) {}
@@ -298,7 +313,7 @@
 				rs[i].addEventListener("change", function () {
 					cur = this.value;
 					try { localStorage.setItem("gc-sharefmt", cur); } catch (e) {}
-					show();
+					show(); applyDiffs();
 				});
 			}
 			show();

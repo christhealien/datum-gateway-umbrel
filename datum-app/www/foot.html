@@ -28,7 +28,7 @@
 			var mode = gwMode(), str = String(s == null ? "" : s);
 			if (mode === "datum") return str;
 			var m = /(\d+(?:\.\d+)?)\s*([kKMGTPEZ]?)/.exec(str);
-			if (!m) return str;
+			if (!m || parseFloat(m[1]) === 0) return str;
 			var v = parseFloat(m[1]) * Math.pow(1000, { "": 0, k: 1, K: 1, M: 2, G: 3, T: 4, P: 5, E: 6, Z: 7 }[m[2]] || 0) / 4294967296, u = ["", "K", "M", "G", "T", "P", "E"], i = 0;
 			while (v >= 1000 && i < u.length - 1) { v /= 1000; i++; }
 			var conv = (v >= 100 ? v.toFixed(0) : v.toFixed(2)) + u[i];
@@ -288,9 +288,15 @@
 			p.className = "pill" + (state === "ok" ? " live ok" : state === "bad" ? " bad" : "");
 			if (tx) tx.textContent = text;
 		}
-		var busy = false;
+		var busy = false, interacting = false, lastHtml = "";
+		/* never swap the table while a scrollbar, a selection or a touch is in use, and put the scroll position back after a swap */
+		document.addEventListener("pointerdown", function (e) { if (e.target && e.target.closest && e.target.closest(".table-wrap")) interacting = true; }, true);
+		document.addEventListener("pointerup", function () { setTimeout(function () { interacting = false; }, 400); }, true);
+		document.addEventListener("pointercancel", function () { interacting = false; }, true);
+		document.addEventListener("touchend", function () { setTimeout(function () { interacting = false; }, 400); }, true);
+		function hasSelection() { var s = window.getSelection ? window.getSelection() : null; return !!(s && !s.isCollapsed && live.contains(s.anchorNode)); }
 		function refresh() {
-			if (paused || document.hidden || busy) return;
+			if (paused || document.hidden || busy || interacting || hasSelection()) return;
 			busy = true;
 			var ac = window.AbortController ? new AbortController() : null, to = setTimeout(function () { if (ac) ac.abort(); }, 8000);
 			fetch(location.href, { cache: "no-store", credentials: "same-origin", signal: ac ? ac.signal : undefined }).then(function (r) {
@@ -299,8 +305,16 @@
 			}).then(function (txt) {
 				var doc = new DOMParser().parseFromString(txt, "text/html"), nl = doc.getElementById("live");
 				if (!nl || !nl.querySelector("table")) throw new Error("signed out");
-				live.innerHTML = nl.innerHTML;
-				enhance();
+				if (nl.innerHTML !== lastHtml) {
+					var olds = live.querySelectorAll(".table-wrap"), pos = [], wy = window.pageYOffset, wx = window.pageXOffset, k;
+					for (k = 0; k < olds.length; k++) pos.push([olds[k].scrollLeft, olds[k].scrollTop]);
+					lastHtml = nl.innerHTML;
+					live.innerHTML = nl.innerHTML;
+					enhance();
+					var news = live.querySelectorAll(".table-wrap");
+					for (k = 0; k < news.length && k < pos.length; k++) { news[k].scrollLeft = pos[k][0]; news[k].scrollTop = pos[k][1]; }
+					window.scrollTo(wx, wy);
+				}
 				var d = new Date(); pill("ok", "live");
 				var u = document.getElementById("upd"); if (u) u.textContent = "Updated " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()) + " · " + gwEvery();
 			}).catch(function (e) {

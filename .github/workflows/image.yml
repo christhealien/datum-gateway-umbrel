@@ -1,5 +1,6 @@
 name: image
-# Push a tag like datum-v1.0.1 to build the image and publish it to ghcr.io (amd64 + arm64).
+# Push a tag like datum-v1.0.1 to build the image (amd64 + arm64), publish it to ghcr.io,
+# then copy the app folder into the store repo christhealien/blake2b (needs the STORE_TOKEN secret).
 on:
   push:
     tags: ["datum-v*"]
@@ -14,6 +15,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - id: v
@@ -44,3 +47,26 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/blake2b-datum-gateway:${{ steps.v.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/blake2b-datum-gateway:latest
+  store:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update the store repo
+        env:
+          STORE_TOKEN: ${{ secrets.STORE_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -eu
+          if [ -z "$STORE_TOKEN" ]; then echo "::notice::STORE_TOKEN is not set: copy the app folder into the store by hand (tools/publish_to_store.sh)"; exit 0; fi
+          auth="$(printf 'x-access-token:%s' "$STORE_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          git -c "http.extraHeader=Authorization: Basic $auth" clone "https://github.com/$OWNER/blake2b.git" /tmp/store
+          rm -rf /tmp/store/blake2b-datum-gateway
+          cp -r blake2b-datum-gateway /tmp/store/
+          cd /tmp/store
+          git add -A
+          git diff --cached --quiet && { echo "store already up to date"; exit 0; }
+          git -c user.name=github-actions -c user.email=actions@users.noreply.github.com commit -m "blake2b-datum-gateway $VERSION"
+          git -c "http.extraHeader=Authorization: Basic $auth" push origin HEAD
