@@ -2,9 +2,9 @@ manifestVersion: 1
 id: blake2b-datum-gateway
 name: DATUM Gateway (blake2b)
 tagline: Mine with your own node and the DATUM protocol, with a redesigned dashboard
-icon: https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/icon.svg?v=1.0.0
+icon: https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/icon.svg?v=1.0.3
 category: bitcoin
-version: "1.0.0"
+version: "1.0.3"
 port: 8791
 description: >-
   The DATUM Gateway from the Open Source DATUM project (OCEAN), running against your own Bitcoin
@@ -32,12 +32,24 @@ support: https://github.com/christhealien/datum-gateway-umbrel/issues
 submitter: christhealien
 submission: https://github.com/christhealien/datum-gateway-umbrel
 gallery:
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/1.png?v=1.0.0
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/2.png?v=1.0.0
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/3.png?v=1.0.0
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/4.png?v=1.0.0
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/5.png?v=1.0.0
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/1.png?v=1.0.3
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/2.png?v=1.0.3
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/3.png?v=1.0.3
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/4.png?v=1.0.3
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/5.png?v=1.0.3
 releaseNotes: |-
+  **1.0.3**
+
+  - Fixed: the Clients table jumped back to the left every refresh while you were scrolling it. Refresh now keeps your scroll position and waits while you hold the scrollbar or select text.
+
+  **1.0.2**
+
+  - Every difficulty now follows the Display setting (like DATUM, the miner's own, or both): network and block difficulty, minimum difficulty, shares and best share, on Status, Clients and Config.
+
+  **1.0.1**
+
+  - Fixed: after the first-run setup the page ended on a white 'Not found' page. It now continues to the dashboard by itself.
+
   **1.0.0: first release**
 
   - Redesigned dashboard (Status, Clients, Threads, Coinbaser, Config) with light and dark themes and a 24-hour hashrate graph.

@@ -8,7 +8,7 @@ release**; this repo only adds the web pages, a sign-in proxy, a first-run setup
 |---|---|
 | `datum-app/` | Docker image source: `Dockerfile`, `www/` (the 14 web files laid over upstream's), `datum_web.py` (sign-in, setup, node wait, restart, proxy), `datum_setup.py`, `patches/` |
 | `blake2b-datum-gateway/` | The Umbrel app folder (manifest, compose, icon, gallery) that goes into the store repo |
-| `tools/` | `validate_overlay.py`, `sync_upstream.py`, `retarget.py`, `publish_to_store.sh`, `preview.py`, `screenshot.py` |
+| `tools/` | `validate_overlay.py`, `sync_upstream.py`, `publish_to_store.sh`, `gitea_mirror.sh`, `preview.py`, `screenshot.py` |
 | `UPSTREAM_TAG` | The upstream release the UI was last checked against |
 | `SETUP.md` | Step-by-step: Gitea test, public release, updates |
 

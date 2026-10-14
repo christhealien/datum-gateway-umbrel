@@ -131,7 +131,7 @@
 				<dt>Previous block</dt><dd><span class="grow" data-k="STRATUM_JOB_PREVBLOCK">${STRATUM_JOB_PREVBLOCK}</span><span data-copy="STRATUM_JOB_PREVBLOCK"></span></dd>
 				<dt>Block target</dt><dd><span class="grow" data-k="STRATUM_JOB_TARGET">${STRATUM_JOB_TARGET}</span><span data-copy="STRATUM_JOB_TARGET"></span></dd>
 				<dt>Witness commitment</dt><dd><span class="grow" data-k="STRATUM_JOB_WITNESS">${STRATUM_JOB_WITNESS}</span><span data-copy="STRATUM_JOB_WITNESS"></span></dd>
-				<dt>Block difficulty</dt><dd><span class="grow" data-k="STRATUM_JOB_DIFF">${STRATUM_JOB_DIFF}</span></dd>
+				<dt>Block difficulty</dt><dd><span class="grow" id="jobDiff"></span></dd>
 				<dt>Version</dt><dd><span class="grow" data-k="STRATUM_JOB_VERSION">${STRATUM_JOB_VERSION}</span></dd>
 				<dt>Bits</dt><dd><span class="grow" data-k="STRATUM_JOB_BITS">${STRATUM_JOB_BITS}</span></dd>
 				<dt>Time</dt><dd><span class="grow" data-k="STRATUM_JOB_TIMEINFO">${STRATUM_JOB_TIMEINFO}</span><span class="tag" id="timeTag"></span></dd>
@@ -146,7 +146,7 @@
 		<p class="footer-note"><span id="updated">Auto refresh</span> &middot; <a href="#" id="pauseLink">pause</a> &middot; <a href="#" id="restartLink">restart Gateway</a> &middot; the hashrate graph is recorded in this browser only</p>
 
 		<!-- raw values the overview tiles above are worked out from -->
-		<div id="raw" hidden>
+		<div id="raw" hidden><span data-k="STRATUM_JOB_DIFF">${STRATUM_JOB_DIFF}</span>
 			<span data-k="STRATUM_SHARES_ACCEPTED">${STRATUM_SHARES_ACCEPTED}</span>
 			<span data-k="STRATUM_SHARES_REJECTED">${STRATUM_SHARES_REJECTED}</span>
 			<span data-k="DATUM_SHARES_ACCEPTED">${DATUM_SHARES_ACCEPTED}</span>
@@ -178,7 +178,7 @@
 			var mode = gwMode(), str = String(s == null ? "" : s);
 			if (mode === "datum") return str;
 			var m = /(\d+(?:\.\d+)?)\s*([kKMGTPEZ]?)/.exec(str);
-			if (!m) return str;
+			if (!m || parseFloat(m[1]) === 0) return str;
 			var v = parseFloat(m[1]) * Math.pow(1000, { "": 0, k: 1, K: 1, M: 2, G: 3, T: 4, P: 5, E: 6, Z: 7 }[m[2]] || 0) / 4294967296, u = ["", "K", "M", "G", "T", "P", "E"], i = 0;
 			while (v >= 1000 && i < u.length - 1) { v /= 1000; i++; }
 			var conv = (v >= 100 ? v.toFixed(0) : v.toFixed(2)) + u[i];
@@ -385,7 +385,8 @@
 			set("bvalSub", ok(txn) ? group(txn) + " transactions" : " ");
 			set("satTag", ok(bv) ? group(Math.round(bv * 1e8)) + " sat" : "");
 			set("poolDiff", gwConv(K("DATUM_POOL_DIFF")));
-			set("ndiff", K("STRATUM_JOB_DIFF") || "—");
+			set("ndiff", gwConv(K("STRATUM_JOB_DIFF")) || "—");
+			set("jobDiff", gwConv(K("STRATUM_JOB_DIFF")));
 			var vers = K("STRATUM_JOB_VERSION"), bits = K("STRATUM_JOB_BITS");
 			set("ndiffSub", bits ? "bits " + bits : " ");
 			var up = K("DATUM_PROCESS_UPTIME");

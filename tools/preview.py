@@ -104,7 +104,7 @@ def home_vars(s):
         "STRATUM_JOB_PREVBLOCK": "<span class='leading_zeros'>%s</span>a3f19c0e7b52d8864ce1fa09b73d4c58e2160f9a1b7c3d" % zeros[:19],
         "STRATUM_JOB_TARGET": "<span class='leading_zeros'>%s</span>3b18d0000000000000000000000000000000000000" % zeros[:17],
         "STRATUM_JOB_WITNESS": "6a24aa21a9ed" + "c3d1b0e47f92a65d18e3b04c9f7a2d6e51b8c0f3a94d27e6185b0c3f9a1d72e",
-        "STRATUM_JOB_DIFF": "113.76T",
+        "STRATUM_JOB_DIFF": "21.8E",
         "STRATUM_JOB_VERSION": "20000000 (536870912)",
         "STRATUM_JOB_BITS": "1703b18d",
         "STRATUM_JOB_TIMEINFO": "Current: %d / Min: %d" % (int(now), int(now) - 5400),

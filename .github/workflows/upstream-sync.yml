@@ -1,0 +1,32 @@
+name: upstream-sync
+# Weekly (and on demand): look for a new CONVOYMining/datum_gateway release, check that the UI still fits it,
+# bump the version and tag it. The tag starts image.yml, which builds the image and updates the store.
+# Needs the STORE_TOKEN secret (a fine-grained token with Contents: read and write on this repo and on blake2b):
+# pushes made with the default token would not start the image workflow.
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.STORE_TOKEN }}
+          fetch-depth: 0
+      - name: Check upstream and bump
+        run: |
+          set -eu
+          git config user.name "upstream-sync"
+          git config user.email "upstream-sync@users.noreply.github.com"
+          out="$(python3 -I tools/sync_upstream.py)" || { echo "$out"; echo "::error::The new upstream release is not compatible with the UI. Fix datum-app/www/ and re-run."; exit 1; }
+          echo "$out"
+          ver="$(echo "$out" | sed -n 's/^NEW_VERSION=//p')"
+          [ -n "$ver" ] || exit 0
+          git add -A
+          git commit -m "Follow upstream $(cat UPSTREAM_TAG): app $ver"
+          git tag "datum-v$ver"
+          git push origin HEAD "datum-v$ver"

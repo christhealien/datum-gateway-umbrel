@@ -162,7 +162,7 @@ def eline(text, good=False):
     return '<p class="eline%s">%s</p>' % (" good" if good else "", e(text)) if text else ""
 
 
-def shell(title, body, nav=True, user=None, active=""):
+def shell(title, body, nav=True, user=None, active="", head=""):
     tabs = ""
     right = '<button type="button" class="theme-btn" data-theme-toggle>&#9728;<span class="tl"> Light</span></button>'
     if nav:
@@ -171,9 +171,9 @@ def shell(title, body, nav=True, user=None, active=""):
         right = '<a class="btn%s" href="/account">Account</a>' % (" active" if active == "account" else "") + right
     return """<!DOCTYPE html><html lang="en" data-theme="dark"><head><meta charset="UTF-8"><title>%s</title>
 <link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico"><link rel="stylesheet" href="/assets/style.css">
-<meta name="viewport" content="width=device-width, initial-scale=1"><style>%s</style><script>%s</script></head><body>
+<meta name="viewport" content="width=device-width, initial-scale=1">%s<style>%s</style><script>%s</script></head><body>
 <header class="app"><h1><img src="/assets/icons/datum_logo.svg" alt="" width="30" height="30"><span><span class="brand">DATUM</span> Gateway</span></h1>%s
-<div class="spacer"></div><div class="hdr-right">%s</div></header><main class="narrow">%s</main></body></html>""" % (e(title), EXTRA_CSS, THEME_JS, tabs, right, body)
+<div class="spacer"></div><div class="hdr-right">%s</div></header><main class="narrow">%s</main></body></html>""" % (e(title), head, EXTRA_CSS, THEME_JS, tabs, right, body)
 
 
 def page_login(error="", next_url="/", first=False):
@@ -215,8 +215,10 @@ def page_setup(err="", addr="", tag="DATUM Gateway", mode="prefer"):
 
 
 def page_state(title, msg, refresh=5):
-    return shell(title, '<meta http-equiv="refresh" content="%d"><section class="panel"><div class="panel-h"><h2>%s</h2></div><p>%s</p>'
-                        '<p style="color:var(--muted)">This page refreshes by itself.</p></section>' % (refresh, e(title), e(msg)))
+    # always reload "/" (never the page we are on: /setup, /restart ... do not exist once the Gateway runs)
+    return shell(title, '<section class="panel"><div class="panel-h"><h2>%s</h2></div><p>%s</p>'
+                        '<p style="color:var(--muted)">This page refreshes by itself. <a href="/">Continue now</a></p></section>' % (e(title), e(msg)),
+                 head='<meta http-equiv="refresh" content="%d;url=/">' % refresh)
 
 
 # ------------------------------------------------------------------ talking to the Gateway
@@ -403,8 +405,10 @@ class H(BaseHTTPRequestHandler):
             return self.send_page(json.dumps({"ok": True}), extra=(("Content-Type", "application/json"),))
         if path == "/account":
             return self.account(user)
-        if path == "/setup" and post and STATE["mode"] == "setup":
-            return self.do_setup()
+        if path == "/setup":
+            if post and STATE["mode"] == "setup":
+                return self.do_setup()
+            return self.redirect("/")
         if STATE["mode"] == "setup":
             return self.send_page(page_setup(), extra=())
         if STATE["mode"] == "wait":
