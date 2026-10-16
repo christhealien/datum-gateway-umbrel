@@ -358,6 +358,58 @@ PASS_HEADERS = ("content-type", "cache-control", "content-disposition", "locatio
 
 
 # ------------------------------------------------------------------ the web server
+# Settings the Gateway's own Config page cannot edit; the Config page's "Identity and advanced" panel does,
+# through /identity (written to config.json, then the Gateway restarts so the change is certain to apply).
+IDENT = [  # (section, key, kind, default, low, high)
+    ("mining", "coinbase_tag_primary", "tag", "DATUM Gateway", 0, 30),
+    ("stratum", "share_stale_seconds", "int", 120, 60, 150),
+    ("stratum", "idle_timeout_no_subscribe", "int", 15, 0, 86400),
+    ("stratum", "idle_timeout_no_shares", "int", 7200, 0, 604800),
+    ("bitcoind", "notify_fallback", "bool", True, 0, 1),
+    ("datum", "migration_max_seconds", "int", 86400, 0, 31536000),
+    ("datum", "protocol_global_timeout", "int", 60, 10, 3600),
+    ("logger", "log_level_console", "int", 2, 0, 5),
+]
+
+
+def identity_values(conf):
+    out = {}
+    for sec, key, kind, dflt, lo, hi in IDENT:
+        v = conf.get(sec, {}).get(key, dflt)
+        out[sec + "_" + key] = bool(v) if kind == "bool" else v
+    return out
+
+
+def identity_apply(conf, data):
+    """validate `data` (name -> value); returns (error, changed). Mutates conf only when everything is valid."""
+    new, changed = {}, False
+    for sec, key, kind, dflt, lo, hi in IDENT:
+        name = sec + "_" + key
+        if name not in data:
+            continue
+        raw = data[name]
+        if kind == "bool":
+            val = raw in (True, 1, "1", "true", "on", "yes")
+        elif kind == "tag":
+            val = str(raw).strip()
+            if not S.valid_tag(val) or len(val) > hi:
+                return "The tag can be up to %d plain characters: letters, digits, spaces, basic punctuation, no < > & quotes or backslash." % hi, False
+        else:
+            try:
+                val = int(str(raw).strip())
+            except ValueError:
+                return "%s must be a whole number." % key.replace("_", " "), False
+            if val < lo or val > hi:
+                return "%s must be between %d and %d." % (key.replace("_", " "), lo, hi), False
+        new[(sec, key)] = val
+    for (sec, key), val in new.items():
+        sect = conf.setdefault(sec, {})
+        if sect.get(key) != val:
+            sect[key] = val
+            changed = True
+    return "", changed
+
+
 def safe_next(n):
     if not n or not n.startswith("/") or n.startswith("//") or re.search(r"[\\\s\x00-\x1f]", n) or n.startswith("/login"):
         return "/"
@@ -497,6 +549,10 @@ class H(BaseHTTPRequestHandler):
 
         if path == "/history.json" and self.command == "GET":
             return self.send_page(HISTORY.dump(), extra=(("Content-Type", "application/json"), ("Cache-Control", "no-store")))
+        if path == "/identity.json" and self.command == "GET":
+            return self.send_page(json.dumps(identity_values(S.load(CONF_PATH[0]))), extra=(("Content-Type", "application/json"), ("Cache-Control", "no-store")))
+        if path == "/identity" and post:
+            return self.identity()
         if path == "/logout" and post:
             AUTH.drop(self.token())
             return self.redirect("/login", cookie=self.cookie("", 0))
@@ -573,6 +629,34 @@ class H(BaseHTTPRequestHandler):
         if force:
             return self.redirect("/", cookie=cookie)
         return self.send_page(page_account(new_user, msg="Login changed. Other devices were signed out."), cookie=cookie)
+
+    def identity(self):
+        def reply(obj, code=200):
+            return self.send_page(json.dumps(obj), code, extra=(("Content-Type", "application/json"),))
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            if n < 0 or n > 65536:
+                raise ValueError
+            data = json.loads(self.rfile.read(n).decode("utf-8", "replace") or "{}")
+            if not isinstance(data, dict):
+                raise ValueError
+        except ValueError:
+            return reply({"ok": False, "error": "Bad request."}, 400)
+        if STATE["mode"] == "wait":
+            return reply({"ok": False, "error": "The Gateway is starting; try again in a moment."}, 409)
+        conf = S.defaults(S.load(CONF_PATH[0]))
+        err, changed = identity_apply(conf, data)
+        if err:
+            return reply({"ok": False, "error": err}, 400)
+        if not changed:
+            return reply({"ok": True, "changed": False})
+        S.save(CONF_PATH[0], conf)
+        if STATE["mode"] == "running":
+            RESTART.set()
+            p = CHILD["p"]
+            if p and p.poll() is None:
+                p.terminate()
+        return reply({"ok": True, "changed": True})
 
     def do_setup(self):
         f = self.form()

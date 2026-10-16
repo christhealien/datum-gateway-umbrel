@@ -156,18 +156,62 @@
 		</div>
 	</section>
 
-	<section class="panel">
-		<div class="panel-h"><h2>Other settings</h2><span class="sub">read only here; set in the config file</span></div>
+	<section class="panel" id="identity">
+		<div class="panel-h"><h2>Identity and advanced</h2><span class="sub">saving restarts the Gateway</span></div>
+		<p class="intro">The tag a block carries is set here. The <b>Coinbase tag</b> above is the name explorers show; the <b>primary tag</b> below is what the block is stamped with when you do not use a pool. Every change here restarts the Gateway for a few seconds (miners reconnect by themselves).</p>
+		<form id="identForm" autocomplete="off">
+		<div class="field">
+			<label for="id_mining_coinbase_tag_primary" class="name">Primary coinbase tag</label>
+			<div class="ctl"><input maxlength="30" id="id_mining_coinbase_tag_primary" name="mining_coinbase_tag_primary" spellcheck="false"></div>
+			<label for="id_mining_coinbase_tag_primary" class="tip">Used when you mine on your own (non-pooled). A pool replaces it with its own tag. Up to 30 characters.</label>
+		</div>
+		<div class="field">
+			<label for="id_stratum_share_stale_seconds" class="name">Share stale after (s)</label>
+			<div class="ctl"><input inputmode="numeric" maxlength="3" id="id_stratum_share_stale_seconds" name="stratum_share_stale_seconds"></div>
+			<label for="id_stratum_share_stale_seconds" class="tip">Seconds after a job is made before a share counts as stale. 60 to 150, default 120.</label>
+		</div>
+		<div class="field">
+			<label for="id_stratum_idle_timeout_no_subscribe" class="name">Idle: no subscribe (s)</label>
+			<div class="ctl"><input inputmode="numeric" maxlength="6" id="id_stratum_idle_timeout_no_subscribe" name="stratum_idle_timeout_no_subscribe"></div>
+			<label for="id_stratum_idle_timeout_no_subscribe" class="tip">Disconnect a connection that never asks for work. 0 never disconnects, default 15.</label>
+		</div>
+		<div class="field">
+			<label for="id_stratum_idle_timeout_no_shares" class="name">Idle: no shares (s)</label>
+			<div class="ctl"><input inputmode="numeric" maxlength="6" id="id_stratum_idle_timeout_no_shares" name="stratum_idle_timeout_no_shares"></div>
+			<label for="id_stratum_idle_timeout_no_shares" class="tip">Disconnect a miner that has sent no accepted share for this long. 0 never disconnects, default 7200.</label>
+		</div>
+		<div class="field">
+			<label for="id_datum_migration_max_seconds" class="name">Pool migration limit (s)</label>
+			<div class="ctl"><input inputmode="numeric" maxlength="8" id="id_datum_migration_max_seconds" name="datum_migration_max_seconds"></div>
+			<label for="id_datum_migration_max_seconds" class="tip">Longest time to stay on another pool server when yours asks to move. 0 turns migration off, default 86400.</label>
+		</div>
+		<div class="field">
+			<label for="id_datum_protocol_global_timeout" class="name">Pool protocol timeout (s)</label>
+			<div class="ctl"><input inputmode="numeric" maxlength="4" id="id_datum_protocol_global_timeout" name="datum_protocol_global_timeout"></div>
+			<label for="id_datum_protocol_global_timeout" class="tip">Reconnect if the pool says nothing for this long. 10 to 3600, default 60.</label>
+		</div>
+		<div class="field">
+			<label for="id_logger_log_level_console" class="name">Log level</label>
+			<div class="ctl"><select id="id_logger_log_level_console" name="logger_log_level_console">
+				<option value="0">0 &middot; everything</option><option value="1">1 &middot; debug</option><option value="2">2 &middot; info (default)</option>
+				<option value="3">3 &middot; warnings</option><option value="4">4 &middot; errors</option><option value="5">5 &middot; fatal only</option>
+			</select></div>
+			<label for="id_logger_log_level_console" class="tip">How much the Gateway writes to the app log.</label>
+		</div>
+		<div class="field">
+			<div class="ctl"><label class="switch" for="id_bitcoind_notify_fallback"><input type="checkbox" id="id_bitcoind_notify_fallback" name="bitcoind_notify_fallback" value="1"><span class="name">Poll the node for new blocks</span></label></div>
+			<label for="id_bitcoind_notify_fallback" class="tip">A safety net in case the node&rsquo;s block notification is missed. Leave it on.</label>
+		</div>
+		<div class="savebar" style="position:static">
+			<button type="submit" class="primary" id="identSave">Save and restart</button>
+			<button type="button" id="identReset">Reset to defaults</button>
+			<span class="state" id="identState"></span>
+		</div>
+		</form>
+		<h3 class="grp">Read only</h3>
 		<div class="kv-grid wide">
-			<div class="kv"><span class="label">Primary coinbase tag</span><span class="val">${mining_coinbase_tag_primary}</span><span class="sub">replaced by the pool&rsquo;s tag when pooled</span></div>
-			<div class="kv"><span class="label">Share stale after</span><span class="val">${stratum_share_stale_seconds} s</span><span class="sub">since the job was made</span></div>
-			<div class="kv"><span class="label">Idle: no subscribe</span><span class="val">${stratum_idle_timeout_no_subscribe} s</span><span class="sub">0 = never disconnect</span></div>
-			<div class="kv"><span class="label">Idle: no shares</span><span class="val">${stratum_idle_timeout_no_shares} s</span><span class="sub">0 = never disconnect</span></div>
-			<div class="kv"><span class="label">Block notify fallback</span><span class="val">${bitcoind_notify_fallback}</span><span class="sub">poll the node for new blocks</span></div>
-			<div class="kv"><span class="label">Pool migration limit</span><span class="val">${datum_migration_max_seconds} s</span><span class="sub">time away from your pool</span></div>
-			<div class="kv"><span class="label">Pool protocol timeout</span><span class="val">${datum_protocol_global_timeout} s</span><span class="sub">before reconnecting</span></div>
+			<div class="kv"><span class="label">Max clients</span><span class="val">${stratum_max_clients}</span><span class="sub">before new ones are refused</span></div>
 			<div class="kv"><span class="label">Web / API port</span><span class="val">${api_listen_port}</span><span class="sub">internal; this page is on 7152</span></div>
-			<div class="kv"><span class="label">Console log level</span><span class="val">${logger_log_level_console}</span><span class="sub">0 all &middot; 2 info &middot; 4 error</span></div>
 		</div>
 	</section>
 
@@ -324,6 +368,33 @@
 				}, 2000);
 			})();
 		}
+		(function () {
+			var form = document.getElementById("identForm"), st = document.getElementById("identState"), cur = {};
+			var DEF = { mining_coinbase_tag_primary: "DATUM Gateway", stratum_share_stale_seconds: 120, stratum_idle_timeout_no_subscribe: 15, stratum_idle_timeout_no_shares: 7200, datum_migration_max_seconds: 86400, datum_protocol_global_timeout: 60, logger_log_level_console: 2, bitcoind_notify_fallback: true };
+			function put(v) { for (var k in v) { var el = document.getElementById("id_" + k); if (!el) continue; if (el.type === "checkbox") el.checked = !!v[k]; else el.value = v[k]; } }
+			function get() { var o = {}; for (var k in DEF) { var el = document.getElementById("id_" + k); o[k] = el.type === "checkbox" ? el.checked : el.value; } return o; }
+			function say(t, bad) { st.textContent = t; st.style.color = bad ? "var(--bad)" : ""; }
+			fetch("/identity.json", { cache: "no-store", credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (v) { cur = v; put(v); }).catch(function () { say("Could not load the current values.", true); });
+			document.getElementById("identReset").addEventListener("click", function () { put(DEF); say("Defaults filled in. Press Save and restart to apply."); });
+			form.addEventListener("submit", function (ev) {
+				ev.preventDefault();
+				var body = get(), same = true;
+				for (var k in body) if (String(body[k]) !== String(cur[k])) same = false;
+				if (same) { say("Nothing changed."); return; }
+				if (!window.confirm("Save and restart the Gateway now?\n\nYour miners disconnect for a few seconds and reconnect on their own.")) return;
+				var btn = document.getElementById("identSave"); btn.disabled = true; say("Saving…");
+				fetch("/identity", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+					.then(function (r) { return r.json().then(function (j) { return { ok: r.ok && j.ok, j: j }; }); })
+					.then(function (x) {
+						if (!x.ok) { btn.disabled = false; say(x.j.error || "Could not save.", true); return; }
+						say("Saved. Restarting the Gateway…");
+						var tries = 0;
+						(function poll() { setTimeout(function () { tries++;
+							fetch("/", { cache: "no-store", credentials: "same-origin" }).then(function (r) { if (r.ok && tries > 1) location.reload(); else if (tries < 90) poll(); else { btn.disabled = false; say("Saved. The Gateway is slow to come back; reload in a moment."); } }).catch(function () { if (tries < 90) poll(); });
+						}, 2000); })();
+					}).catch(function () { btn.disabled = false; say("Could not reach the app.", true); });
+			});
+		})();
 		document.getElementById("restartBtn").addEventListener("click", function () { gwRestart(this); });
 	</script>
 </body>
