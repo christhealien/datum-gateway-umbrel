@@ -339,3 +339,8 @@ svg circle[style*="silver"] { fill: var(--muted) !important; }
 .opt .od { color: var(--muted); font-size: .78rem; }
 h3.grp { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 1.1rem 0 .2rem; }
 .panel > h3.grp:first-of-type { margin-top: .4rem; }
+
+/* Config > Identity and advanced: its own bar (the page's Save bar is sticky and reaches 3.5rem into whatever follows its form) */
+#identity { margin-top: 4.6rem; }
+.idbar { display: flex; align-items: center; gap: .8rem 1rem; flex-wrap: wrap; margin-top: .6rem; padding-top: .9rem; border-top: 1px solid var(--line); }
+.idbar .state { color: var(--muted); font-size: .86rem; flex: 1 1 16rem; }
