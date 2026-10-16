@@ -346,3 +346,7 @@ body[data-page="config"] .savebar { margin-bottom: 1rem; }
 body[data-page="config"] .savebar:not(.dirty) { position: static; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding-left: 0; padding-right: 0; margin-left: 0; margin-right: 0; }
 .idbar { display: flex; align-items: center; gap: .8rem 1rem; flex-wrap: wrap; margin-top: .6rem; padding-top: .9rem; border-top: 1px solid var(--line); }
 .idbar .state { color: var(--muted); font-size: .86rem; flex: 1 1 16rem; }
+.field > .ctl > select[data-preset] { flex: 1 1 18rem; }
+.field > .ctl > input.hidden { display: none !important; }
+.field > .ctl > input[id$="_custom"] { flex: 0 1 12rem; width: auto; }
+.field > .tip.hint { min-height: 1.2em; }

@@ -2,9 +2,9 @@ manifestVersion: 1
 id: blake2b-datum-gateway
 name: DATUM Gateway (blake2b)
 tagline: Mine with your own node and the DATUM protocol, with a redesigned dashboard
-icon: https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/icon.svg?v=1.0.9
+icon: https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/icon.svg?v=1.0.11
 category: bitcoin
-version: "1.0.9"
+version: "1.0.11"
 port: 8791
 description: >-
   The DATUM Gateway from the Open Source DATUM project (OCEAN), running against your own Bitcoin
@@ -32,12 +32,20 @@ support: https://github.com/christhealien/datum-gateway-umbrel/issues
 submitter: christhealien
 submission: https://github.com/christhealien/datum-gateway-umbrel
 gallery:
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/1.png?v=1.0.9
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/2.png?v=1.0.9
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/3.png?v=1.0.9
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/4.png?v=1.0.9
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/5.png?v=1.0.9
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/1.png?v=1.0.11
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/2.png?v=1.0.11
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/3.png?v=1.0.11
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/4.png?v=1.0.11
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/5.png?v=1.0.11
 releaseNotes: |-
+  **1.0.11**
+
+  - Min share difficulty presets are now sized for Blake2b machines (HS Box, SC Box, SC Lite class) instead of SHA256 miners.
+
+  **1.0.10**
+
+  - Config: Min share difficulty, target shares per minute and max clients are now editable with plain-language presets (saving restarts the Gateway).
+
   **1.0.9**
 
   - Config: the Save bar stays at the end of the form and only follows the screen while you have unsaved changes.

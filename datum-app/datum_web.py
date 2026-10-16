@@ -365,6 +365,9 @@ IDENT = [  # (section, key, kind, default, low, high)
     ("stratum", "share_stale_seconds", "int", 120, 60, 150),
     ("stratum", "idle_timeout_no_subscribe", "int", 15, 0, 86400),
     ("stratum", "idle_timeout_no_shares", "int", 7200, 0, 604800),
+    ("stratum", "vardiff_min", "int", 1024, 1, 1 << 40),
+    ("stratum", "vardiff_target_shares_min", "int", 8, 1, 60),
+    ("stratum", "max_clients", "int", 1024, 1, 1024),
     ("bitcoind", "notify_fallback", "bool", True, 0, 1),
     ("datum", "migration_max_seconds", "int", 86400, 0, 31536000),
     ("datum", "protocol_global_timeout", "int", 60, 10, 3600),
@@ -402,6 +405,11 @@ def identity_apply(conf, data):
             if val < lo or val > hi:
                 return "%s must be between %d and %d." % (key.replace("_", " "), lo, hi), False
         new[(sec, key)] = val
+    if ("stratum", "max_clients") in new:   # the Gateway refuses to start when this is above threads x clients per thread
+        st = conf.get("stratum", {})
+        room = int(st.get("max_clients_per_thread", 128)) * int(st.get("max_threads", 8))
+        if new[("stratum", "max_clients")] > room:
+            return "max clients cannot be above %d with the current thread settings." % room, False
     for (sec, key), val in new.items():
         sect = conf.setdefault(sec, {})
         if sect.get(key) != val:

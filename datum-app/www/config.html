@@ -173,6 +173,22 @@
 			<label for="id_mining_coinbase_tag_primary" class="tip">Used when you mine on your own (non-pooled). A pool replaces it with its own tag. Up to 30 characters.</label>
 		</div>
 		<div class="field">
+			<label for="id_stratum_vardiff_min" class="name">Min share difficulty</label>
+			<div class="ctl"><select id="id_stratum_vardiff_min" name="stratum_vardiff_min" data-preset></select><input inputmode="numeric" maxlength="13" id="id_stratum_vardiff_min_custom" class="hidden" placeholder="whole number, e.g. 8192" aria-label="Custom minimum share difficulty"></div>
+			<div class="tip hint" id="hint_stratum_vardiff_min"></div>
+			<div class="tip">Rule of thumb for Blake2b: floor &asymp; hashrate in TH/s &times; 1,750, so that a machine sends about 8 shares a minute. Best check: open <b>Clients</b>, read the difficulty (VDiff) your smallest miner settles at, and set the floor at or just under it.</div>
+		</div>
+		<div class="field">
+			<label for="id_stratum_vardiff_target_shares_min" class="name">Target shares per minute</label>
+			<div class="ctl"><select id="id_stratum_vardiff_target_shares_min" name="stratum_vardiff_target_shares_min" data-preset></select><input inputmode="numeric" maxlength="2" id="id_stratum_vardiff_target_shares_min_custom" class="hidden" placeholder="1 to 60" aria-label="Custom shares per minute"></div>
+			<div class="tip hint" id="hint_stratum_vardiff_target_shares_min"></div>
+		</div>
+		<div class="field">
+			<label for="id_stratum_max_clients" class="name">Max clients</label>
+			<div class="ctl"><select id="id_stratum_max_clients" name="stratum_max_clients" data-preset></select><input inputmode="numeric" maxlength="4" id="id_stratum_max_clients_custom" class="hidden" placeholder="1 to 1024" aria-label="Custom maximum clients"></div>
+			<div class="tip hint" id="hint_stratum_max_clients"></div>
+		</div>
+		<div class="field">
 			<label for="id_stratum_share_stale_seconds" class="name">Share stale after (s)</label>
 			<div class="ctl"><input inputmode="numeric" maxlength="3" id="id_stratum_share_stale_seconds" name="stratum_share_stale_seconds"></div>
 			<label for="id_stratum_share_stale_seconds" class="tip">Seconds after a job is made before a share counts as stale. 60 to 150, default 120.</label>
@@ -217,7 +233,6 @@
 		</form>
 		<h3 class="grp">Read only</h3>
 		<div class="kv-grid wide">
-			<div class="kv"><span class="label">Max clients</span><span class="val">${stratum_max_clients}</span><span class="sub">before new ones are refused</span></div>
 			<div class="kv"><span class="label">Web / API port</span><span class="val">${api_listen_port}</span><span class="sub">internal; this page is on 7152</span></div>
 		</div>
 	</section>
@@ -370,11 +385,60 @@
 				}, 2000);
 			})();
 		}
+
+		// presets with plain explanations: [value, label, what it means]
+		var PRESETS = {
+			stratum_vardiff_min: [
+				[256, "256 \u00b7 under 0.2 TH/s", "For very small Blake2b machines. A low floor lets them send shares often right after connecting."],
+				[1024, "1,024 \u00b7 default (0.2 to 1 TH/s)", "The Gateway\u2019s default. Fits machines like an HS Box (about 0.55 TH/s) or SC Box (about 0.75 TH/s). The Gateway raises each miner\u2019s difficulty by itself, so the floor only matters when a miner first connects."],
+				[4096, "4,096 \u00b7 1 to 3 TH/s", "For mid-size Blake2b machines around 1 to 3 TH/s."],
+				[8192, "8,192 \u00b7 3 to 6 TH/s", "For machines like an SC Lite (about 4.8 TH/s). A single machine this size settles near this difficulty by itself."],
+				[16384, "16,384 \u00b7 6 to 12 TH/s", "For one big machine or two or three SC Lite class units behind the same Gateway."],
+				[65536, "65,536 \u00b7 12 to 50 TH/s", "For a small Blake2b farm. Only use this if every miner is at least this big."],
+				[262144, "262,144 \u00b7 over 50 TH/s", "For a large fleet. Small machines would send almost no shares at this floor and look idle."]
+			],
+			stratum_vardiff_target_shares_min: [
+				[4, "4 per minute \u00b7 lighter", "Fewer shares: less load on a slow node or Pi, but the hashrate graph is rougher."],
+				[8, "8 per minute \u00b7 default", "A good balance of smooth hashrate numbers and low load."],
+				[12, "12 per minute", "Smoother hashrate numbers for a few miners. Slightly more load."],
+				[20, "20 per minute \u00b7 smooth", "Very smooth graphs. Fine for a handful of miners on a normal PC or Umbrel; avoid on a Raspberry Pi with many miners."]
+			],
+			stratum_max_clients: [
+				[8, "8 \u00b7 a few miners, locked down", "Best if the Gateway port is reachable from outside your home: only a few connections are accepted, so strangers cannot fill it."],
+				[32, "32 \u00b7 home setup", "Plenty for a home with several ASICs. Each miner is one connection."],
+				[128, "128 \u00b7 small farm", "A garage or office farm. Comfortable on a Raspberry Pi 4 or any Umbrel."],
+				[512, "512 \u00b7 large farm", "Many machines on a good PC or server. Each connection costs little memory; the load is validating shares."],
+				[1024, "1,024 \u00b7 default and maximum", "The Gateway\u2019s own default and the highest this setting allows. Only miners on your own network normally reach the port, so this is fine for most people."]
+			]
+		};
+		function presetEls(k) { return { sel: document.getElementById("id_" + k), custom: document.getElementById("id_" + k + "_custom"), hint: document.getElementById("hint_" + k) }; }
+		function presetHint(k) {
+			var e = presetEls(k), txt = "";
+			if (e.sel.value === "custom") txt = "A number of your own. The presets above explain what each size is for.";
+			else for (var i = 0; i < PRESETS[k].length; i++) if (String(PRESETS[k][i][0]) === e.sel.value) txt = PRESETS[k][i][2];
+			e.hint.textContent = txt; e.custom.classList.toggle("hidden", e.sel.value !== "custom");
+		}
+		function presetBuild() {
+			for (var k in PRESETS) {
+				var e = presetEls(k), h = "";
+				for (var i = 0; i < PRESETS[k].length; i++) h += '<option value="' + PRESETS[k][i][0] + '">' + PRESETS[k][i][1] + "</option>";
+				e.sel.innerHTML = h + '<option value="custom">Custom\u2026</option>';
+				e.sel.addEventListener("change", (function (kk) { return function () { presetHint(kk); }; })(k));
+			}
+		}
+		function presetSet(k, v) {
+			var e = presetEls(k), hit = false;
+			for (var i = 0; i < PRESETS[k].length; i++) if (String(PRESETS[k][i][0]) === String(v)) hit = true;
+			if (hit) e.sel.value = String(v); else { e.sel.value = "custom"; e.custom.value = v; }
+			presetHint(k);
+		}
+		function presetGet(k) { var e = presetEls(k); return e.sel.value === "custom" ? e.custom.value : e.sel.value; }
+		presetBuild();
 		(function () {
 			var form = document.getElementById("identForm"), st = document.getElementById("identState"), cur = {};
-			var DEF = { mining_coinbase_tag_primary: "DATUM Gateway", stratum_share_stale_seconds: 120, stratum_idle_timeout_no_subscribe: 15, stratum_idle_timeout_no_shares: 7200, datum_migration_max_seconds: 86400, datum_protocol_global_timeout: 60, logger_log_level_console: 2, bitcoind_notify_fallback: true };
-			function put(v) { for (var k in v) { var el = document.getElementById("id_" + k); if (!el) continue; if (el.type === "checkbox") el.checked = !!v[k]; else el.value = v[k]; } }
-			function get() { var o = {}; for (var k in DEF) { var el = document.getElementById("id_" + k); o[k] = el.type === "checkbox" ? el.checked : el.value; } return o; }
+			var DEF = { stratum_vardiff_min: 1024, stratum_vardiff_target_shares_min: 8, stratum_max_clients: 1024, mining_coinbase_tag_primary: "DATUM Gateway", stratum_share_stale_seconds: 120, stratum_idle_timeout_no_subscribe: 15, stratum_idle_timeout_no_shares: 7200, datum_migration_max_seconds: 86400, datum_protocol_global_timeout: 60, logger_log_level_console: 2, bitcoind_notify_fallback: true };
+			function put(v) { for (var k in v) { if (PRESETS[k]) { presetSet(k, v[k]); continue; } var el = document.getElementById("id_" + k); if (!el) continue; if (el.type === "checkbox") el.checked = !!v[k]; else el.value = v[k]; } }
+			function get() { var o = {}; for (var k in DEF) { if (PRESETS[k]) { o[k] = presetGet(k); continue; } var el = document.getElementById("id_" + k); o[k] = el.type === "checkbox" ? el.checked : el.value; } return o; }
 			function say(t, bad) { st.textContent = t; st.style.color = bad ? "var(--bad)" : ""; }
 			fetch("/identity.json", { cache: "no-store", credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (v) { cur = v; put(v); }).catch(function () { say("Could not load the current values.", true); });
 			document.getElementById("identReset").addEventListener("click", function () { put(DEF); say("Defaults filled in. Press Save and restart to apply."); });
