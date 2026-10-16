@@ -276,6 +276,7 @@
 			var state = document.getElementById('saveState');
 			if (state && initial_state !== null && !state.getAttribute('data-ro')) {
 				var dirty = form_state() != initial_state;
+				var bar = state.closest('.savebar'); if (bar) bar.classList.toggle('dirty', dirty);
 				var extra = state.querySelector('em') ? state.querySelector('em').outerHTML : '';
 				state.innerHTML = (dirty ? (restart ? '<em>Unsaved changes. Saving restarts the Gateway.</em>' : '<em>Unsaved changes.</em>') : 'No changes yet.') + (extra ? '<br>' + extra : '');
 			}
