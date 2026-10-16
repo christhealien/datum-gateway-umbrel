@@ -2,9 +2,9 @@ manifestVersion: 1
 id: blake2b-datum-gateway
 name: DATUM Gateway (blake2b)
 tagline: Mine with your own node and the DATUM protocol, with a redesigned dashboard
-icon: https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/icon.svg?v=1.0.6
+icon: https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/icon.svg?v=1.0.7
 category: bitcoin
-version: "1.0.6"
+version: "1.0.7"
 port: 8791
 description: >-
   The DATUM Gateway from the Open Source DATUM project (OCEAN), running against your own Bitcoin
@@ -32,12 +32,16 @@ support: https://github.com/christhealien/datum-gateway-umbrel/issues
 submitter: christhealien
 submission: https://github.com/christhealien/datum-gateway-umbrel
 gallery:
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/1.png?v=1.0.6
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/2.png?v=1.0.6
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/3.png?v=1.0.6
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/4.png?v=1.0.6
-  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/5.png?v=1.0.6
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/1.png?v=1.0.7
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/2.png?v=1.0.7
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/3.png?v=1.0.7
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/4.png?v=1.0.7
+  - https://raw.githubusercontent.com/christhealien/datum-gateway-umbrel/master/blake2b-datum-gateway/gallery/5.png?v=1.0.7
 releaseNotes: |-
+  **1.0.7**
+
+  - Fix: the new Identity and advanced settings now save.
+
   **1.0.6**
 
   - Config page: the primary coinbase tag can now be changed any time, plus editable timeouts, log level and block-notify fallback (saving restarts the Gateway).
