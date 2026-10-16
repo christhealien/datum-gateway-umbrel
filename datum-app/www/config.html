@@ -156,6 +156,13 @@
 		</div>
 	</section>
 
+
+	<div class="savebar">
+		<button type="submit" class="primary save-button"${disabled:*ro}>Save</button>
+		<span class="state" id="saveState">No changes yet.${msg:*ro}</span>
+	</div>
+	</form>
+
 	<section class="panel" id="identity">
 		<div class="panel-h"><h2>Identity and advanced</h2><span class="sub">saving restarts the Gateway</span></div>
 		<p class="intro">The tag a block carries is set here. The <b>Coinbase tag</b> above is the name explorers show; the <b>primary tag</b> below is what the block is stamped with when you do not use a pool. Every change here restarts the Gateway for a few seconds (miners reconnect by themselves).</p>
@@ -214,12 +221,6 @@
 			<div class="kv"><span class="label">Web / API port</span><span class="val">${api_listen_port}</span><span class="sub">internal; this page is on 7152</span></div>
 		</div>
 	</section>
-
-	<div class="savebar">
-		<button type="submit" class="primary save-button"${disabled:*ro}>Save</button>
-		<span class="state" id="saveState">No changes yet.${msg:*ro}</span>
-	</div>
-	</form>
 
 	<section class="panel" id="display">
 		<div class="panel-h"><h2>Display</h2><span class="sub">saved in this browser only</span><span class="pill" id="shareNow">Like DATUM</span></div>
