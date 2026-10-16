@@ -209,10 +209,10 @@
 			<div class="ctl"><label class="switch" for="id_bitcoind_notify_fallback"><input type="checkbox" id="id_bitcoind_notify_fallback" name="bitcoind_notify_fallback" value="1"><span class="name">Poll the node for new blocks</span></label></div>
 			<label for="id_bitcoind_notify_fallback" class="tip">A safety net in case the node&rsquo;s block notification is missed. Leave it on.</label>
 		</div>
-		<div class="savebar" style="position:static">
+		<div class="idbar">
 			<button type="submit" class="primary" id="identSave">Save and restart</button>
 			<button type="button" id="identReset">Reset to defaults</button>
-			<span class="state" id="identState"></span>
+			<span class="state" id="identState" role="status" aria-live="polite">Change a value, then press Save and restart.</span>
 		</div>
 		</form>
 		<h3 class="grp">Read only</h3>
@@ -381,14 +381,20 @@
 				ev.preventDefault();
 				var body = get(), same = true;
 				for (var k in body) if (String(body[k]) !== String(cur[k])) same = false;
-				if (same) { say("Nothing changed."); return; }
-				if (!window.confirm("Save and restart the Gateway now?\n\nYour miners disconnect for a few seconds and reconnect on their own.")) return;
-				var btn = document.getElementById("identSave"); btn.disabled = true; say("Saving…");
+				if (same) { say("Nothing changed: edit a value first.", true); return; }
+				var btn = document.getElementById("identSave");
+				if (!btn.dataset.armed) {   // two-step confirm without a pop-up (pop-ups can be blocked)
+					btn.dataset.armed = "1"; btn.textContent = "Click again to restart now";
+					say("This restarts the Gateway for a few seconds; miners reconnect by themselves.");
+					setTimeout(function () { delete btn.dataset.armed; if (!btn.disabled) btn.textContent = "Save and restart"; }, 6000);
+					return;
+				}
+				delete btn.dataset.armed; btn.disabled = true; btn.textContent = "Saving…"; say("Saving…");
 				fetch("/identity", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
 					.then(function (r) { return r.json().then(function (j) { return { ok: r.ok && j.ok, j: j }; }); })
 					.then(function (x) {
-						if (!x.ok) { btn.disabled = false; say(x.j.error || "Could not save.", true); return; }
-						say("Saved. Restarting the Gateway…");
+						if (!x.ok) { btn.disabled = false; btn.textContent = "Save and restart"; say(x.j.error || "Could not save.", true); return; }
+						btn.textContent = "Restarting…"; say("Saved. Restarting the Gateway; this page reloads by itself.");
 						var tries = 0;
 						(function poll() { setTimeout(function () { tries++;
 							fetch("/", { cache: "no-store", credentials: "same-origin" }).then(function (r) { if (r.ok && tries > 1) location.reload(); else if (tries < 90) poll(); else { btn.disabled = false; say("Saved. The Gateway is slow to come back; reload in a moment."); } }).catch(function () { if (tries < 90) poll(); });
