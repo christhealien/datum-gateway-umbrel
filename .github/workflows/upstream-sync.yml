@@ -1,23 +1,29 @@
 name: upstream-sync
 # Weekly (and on demand): look for a new CONVOYMining/datum_gateway release, check that the UI still fits it,
 # bump the version and tag it. The tag starts image.yml, which builds the image and updates the store.
-# Needs the STORE_TOKEN secret (a fine-grained token with Contents: read and write on this repo and on blake2b):
-# pushes made with the default token would not start the image workflow.
+# The push is made with the STORE_TOKEN secret when it works (a tag pushed with it starts image.yml by itself).
+# If STORE_TOKEN is missing, expired or refused, the default token is used instead and image.yml is started
+# directly, so this job no longer fails just because a token ran out.
 on:
   schedule:
     - cron: "17 5 * * 1"
   workflow_dispatch:
 permissions:
   contents: write
+  actions: write
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.STORE_TOKEN }}
           fetch-depth: 0
+          persist-credentials: false
       - name: Check upstream and bump
+        env:
+          STORE_TOKEN: ${{ secrets.STORE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -eu
           git config user.name "upstream-sync"
@@ -28,5 +34,19 @@ jobs:
           [ -n "$ver" ] || exit 0
           git add -A
           git commit -m "Follow upstream $(cat UPSTREAM_TAG): app $ver"
-          git tag "datum-v$ver"
-          git push origin HEAD "datum-v$ver"
+          tag="datum-v$ver"
+          git tag "$tag"
+          push() {  # push "$1" (a token) with the branch and the tag
+            auth="$(printf 'x-access-token:%s' "$1" | base64 -w0)"
+            echo "::add-mask::$auth"
+            git -c "http.extraHeader=Authorization: Basic $auth" push "https://github.com/$REPO.git" "HEAD:${GITHUB_REF_NAME}" "$tag"
+          }
+          if [ -n "$STORE_TOKEN" ] && push "$STORE_TOKEN"; then
+            echo "pushed with STORE_TOKEN: the tag starts the image build"
+            exit 0
+          fi
+          [ -z "$STORE_TOKEN" ] || echo "::warning::STORE_TOKEN was refused (expired, or without Contents write on this repo). Renew it in Settings -> Secrets -> Actions. Using the default token instead."
+          push "$GH_TOKEN"
+          # a tag pushed with the default token does not start other workflows, so start the build directly
+          gh workflow run image.yml --repo "$REPO" --ref "${GITHUB_REF_NAME}" -f version="$ver"
+          echo "started image.yml for $ver"
