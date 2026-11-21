@@ -435,7 +435,8 @@ class H(BaseHTTPRequestHandler):
     # --- helpers
     def client(self):
         if BEHIND_PROXY:
-            xf = (self.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+            # the last entry is the one app_proxy added; earlier ones are whatever the client sent
+            xf = (self.headers.get("X-Forwarded-For") or "").split(",")[-1].strip()
             if xf:
                 return xf
         return self.client_address[0]

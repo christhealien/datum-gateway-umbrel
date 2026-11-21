@@ -100,6 +100,7 @@ def defaults(conf):
     conf.setdefault("mining", {})
     api = conf.setdefault("api", {})
     api["listen_port"] = INTERNAL_PORT
+    api["listen_addr"] = "127.0.0.1"   # only the sign-in proxy in this container talks to it
     api["modify_conf"] = True
     conf.setdefault("logger", {}).setdefault("log_to_console", True)
     conf.setdefault("datum", {}).setdefault("pool_host", "datum-beta1.mine.convoy.xyz")
